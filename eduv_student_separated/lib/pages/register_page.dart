@@ -3,31 +3,52 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../config/api.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _RegisterPageState extends State<RegisterPage> {
   bool hidePassword = true;
+  bool hideConfirmPassword = true;
   bool isLoading = false;
 
+  final TextEditingController fullNameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   @override
   void dispose() {
+    fullNameController.dispose();
     emailController.dispose();
     passwordController.dispose();
+    confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> login() async {
-    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+  Future<void> register() async {
+    final fullName = fullNameController.text.trim();
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+    final confirmPassword = confirmPasswordController.text.trim();
+
+    if (fullName.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty ||
+        confirmPassword.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter email and password')),
+        const SnackBar(content: Text('Please fill in all fields.')),
+      );
+      return;
+    }
+
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match.')),
       );
       return;
     }
@@ -36,23 +57,27 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/login'),
-        headers: {"Content-Type": "application/json"},
+        Uri.parse('$baseUrl/api/auth/register'),
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          "email": emailController.text,
-          "password": passwordController.text,
+          'fullName': fullName,
+          'email': email,
+          'password': password,
         }),
       );
 
       final data = jsonDecode(response.body);
 
-      if (response.statusCode == 200 && data['success'] == true) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(data['message'] ?? 'Registration successful.')),
+        );
+        Navigator.pushReplacementNamed(context, '/login');
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['message'] ?? 'Login failed')),
+          SnackBar(content: Text(data['message'] ?? 'Registration failed.')),
         );
       }
     } catch (e) {
@@ -61,7 +86,9 @@ class _LoginPageState extends State<LoginPage> {
         SnackBar(content: Text('Error: $e')),
       );
     } finally {
-      if (mounted) setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -84,25 +111,31 @@ class _LoginPageState extends State<LoginPage> {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               child: Container(
                 width: 380,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 32,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF2C2DB0).withOpacity(0.88),
                   borderRadius: BorderRadius.circular(34),
                 ),
                 child: Column(
                   children: [
-                    Image.asset('assets/1.png', width: 120),
+                    Image.asset('assets/1.png', width: 110),
                     const SizedBox(height: 20),
                     const Text(
-                      'Login',
-                      style: TextStyle(fontSize: 42, fontWeight: FontWeight.bold, color: Colors.white),
+                      'Register',
+                      style: TextStyle(
+                        fontSize: 38,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
-                    const SizedBox(height: 30),
-
+                    const SizedBox(height: 28),
+                    _inputField('Full Name', false, fullNameController),
+                    const SizedBox(height: 16),
                     _inputField('Email', false, emailController),
-
-                    const SizedBox(height: 18),
-
+                    const SizedBox(height: 16),
                     _inputField(
                       'Password',
                       hidePassword,
@@ -110,14 +143,31 @@ class _LoginPageState extends State<LoginPage> {
                       suffix: GestureDetector(
                         onTap: () => setState(() => hidePassword = !hidePassword),
                         child: Icon(
-                          hidePassword ? Icons.visibility : Icons.visibility_off,
+                          hidePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                           color: Colors.white70,
                         ),
                       ),
                     ),
-
+                    const SizedBox(height: 16),
+                    _inputField(
+                      'Confirm Password',
+                      hideConfirmPassword,
+                      confirmPasswordController,
+                      suffix: GestureDetector(
+                        onTap: () => setState(
+                          () => hideConfirmPassword = !hideConfirmPassword,
+                        ),
+                        child: Icon(
+                          hideConfirmPassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 28),
-
                     SizedBox(
                       width: 220,
                       height: 60,
@@ -129,56 +179,34 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         child: ElevatedButton(
-                          onPressed: isLoading ? null : login,
+                          onPressed: isLoading ? null : register,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
                           ),
                           child: isLoading
-                              ? const CircularProgressIndicator(color: Colors.white)
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
                               : const Text(
-                                  'Login',
+                                  'Register',
                                   style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white),
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 20),
-
-                    // ✅ REGISTER BUTTON (YOUR REQUEST)
+                    const SizedBox(height: 22),
                     TextButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/register');
+                        Navigator.pushReplacementNamed(context, '/login');
                       },
                       child: const Text(
-                        "Don't have an account? Register",
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    const Text(
-                      'Or continue with',
-                      style: TextStyle(fontSize: 16, color: Colors.white),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    const CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Colors.white,
-                      child: Text(
-                        'G',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
-                        ),
+                        'Already have an account? Login',
+                        style: TextStyle(color: Colors.white70, fontSize: 16),
                       ),
                     ),
                   ],
@@ -215,7 +243,10 @@ class _LoginPageState extends State<LoginPage> {
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: hint,
-                hintStyle: const TextStyle(color: Colors.white70, fontSize: 18),
+                hintStyle: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 18,
+                ),
               ),
             ),
           ),
