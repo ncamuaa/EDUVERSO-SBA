@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/student_data.dart';
+import '../utils/app_size.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/student_page_base.dart';
 
@@ -9,7 +10,7 @@ class PeerFeedbackPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
+    final w = AppSize.w(context);
 
     return StudentPageBase(
       title: 'Peer Feedback',
@@ -45,7 +46,7 @@ class PeerFeedbackPage extends StatelessWidget {
                     ),
                   ],
                 ),
-              )
+              ),
             ],
           ),
           SizedBox(height: w * 0.035),
@@ -96,7 +97,9 @@ class PeerFeedbackPage extends StatelessWidget {
                     SizedBox(height: w * 0.035),
                     Text(
                       '⭐⭐⭐⭐⭐',
-                      style: TextStyle(fontSize: w * 0.065),
+                      style: TextStyle(
+                        fontSize: w * 0.065,
+                      ),
                     ),
                   ],
                 ),

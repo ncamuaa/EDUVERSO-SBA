@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/student_data.dart';
 import '../theme/app_theme.dart';
+import '../utils/app_size.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/common_widgets.dart';
 import 'ai_tutor_page.dart';
@@ -16,7 +17,7 @@ class StudentDashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
+    final w = AppSize.w(context); // ✅ FIXED
 
     return AppShell(
       child: Builder(
@@ -54,12 +55,12 @@ class StudentDashboardPage extends StatelessWidget {
               /// WELCOME TEXT
               Text(
                 'Welcome,',
-                style: TextStyle(fontSize: w * 0.06, color: Colors.white70),
+                style: TextStyle(fontSize: w * 0.055, color: Colors.white70),
               ),
               Text(
                 StudentData.name,
                 style: TextStyle(
-                  fontSize: w * 0.075,
+                  fontSize: w * 0.07,
                   fontWeight: FontWeight.w800,
                   color: Colors.white,
                 ),
@@ -68,7 +69,7 @@ class StudentDashboardPage extends StatelessWidget {
               Text(
                 'Shape your future, one lesson at a time.',
                 style: TextStyle(
-                  fontSize: w * 0.04,
+                  fontSize: w * 0.038,
                   color: AppTheme.textSoft,
                 ),
               ),
@@ -80,43 +81,53 @@ class StudentDashboardPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Daily Focus',
-                        style: TextStyle(
-                            fontSize: w * 0.045,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white70)),
-                    SizedBox(height: 6),
-                    Text('Introduction to Programming',
-                        style: TextStyle(
-                            fontSize: w * 0.055,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white)),
+                    Text(
+                      'Daily Focus',
+                      style: TextStyle(
+                        fontSize: w * 0.042,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white70,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Introduction to Programming',
+                      style: TextStyle(
+                        fontSize: w * 0.05,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
                     SizedBox(height: w * 0.03),
                     Row(
                       children: [
                         Expanded(child: progressBar(0.5)),
-                        SizedBox(width: 8),
-                        Text('50%',
-                            style: TextStyle(
-                                fontSize: w * 0.04,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white)),
+                        const SizedBox(width: 8),
+                        Text(
+                          '50%',
+                          style: TextStyle(
+                            fontSize: w * 0.038,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
                       ],
                     ),
                     SizedBox(height: w * 0.04),
                     Container(
-                      height: w * 0.3,
+                      height: w * 0.28,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(14),
                         gradient: const LinearGradient(
-                            colors: [Color(0xFF071C66), Color(0xFF1558E1)]),
+                          colors: [Color(0xFF071C66), Color(0xFF1558E1)],
+                        ),
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         'INTRODUCTION TO PROGRAMMING',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: w * 0.045,
+                          fontSize: w * 0.04,
                           letterSpacing: 1,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
@@ -137,27 +148,39 @@ class StudentDashboardPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Your Progress',
-                              style: TextStyle(
-                                  fontSize: w * 0.045,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white70)),
-                          SizedBox(height: 4),
-                          Text('Level 1',
-                              style: TextStyle(
-                                  fontSize: w * 0.06,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white)),
-                          SizedBox(height: 4),
-                          Text('60/100 XP',
-                              style: TextStyle(
-                                  fontSize: w * 0.045,
-                                  color: Colors.white)),
-                          SizedBox(height: 6),
-                          Text('🔥 0-day streak',
-                              style: TextStyle(
-                                  fontSize: w * 0.04,
-                                  color: Colors.white)),
+                          Text(
+                            'Your Progress',
+                            style: TextStyle(
+                              fontSize: w * 0.042,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white70,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Level 1',
+                            style: TextStyle(
+                              fontSize: w * 0.055,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '60/100 XP',
+                            style: TextStyle(
+                              fontSize: w * 0.04,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '🔥 0-day streak',
+                            style: TextStyle(
+                              fontSize: w * 0.038,
+                              color: Colors.white,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -166,10 +189,13 @@ class StudentDashboardPage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('60% to next level',
-                              style: TextStyle(
-                                  fontSize: w * 0.04,
-                                  color: Colors.white70)),
+                          Text(
+                            '60% to next level',
+                            style: TextStyle(
+                              fontSize: w * 0.038,
+                              color: Colors.white70,
+                            ),
+                          ),
                           SizedBox(height: w * 0.03),
                           progressBar(0.6),
                         ],
@@ -188,7 +214,7 @@ class StudentDashboardPage extends StatelessWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: w * 0.04,
                 mainAxisSpacing: w * 0.04,
-                childAspectRatio: 2.3,
+                childAspectRatio: 2.5, // slightly tighter
                 children: [
                   _homeButton(context, 'Voice Tutor', AppTheme.blue, Icons.mic, const AITutorPage(), w),
                   _homeButton(context, 'Modules', AppTheme.green, Icons.menu_book_rounded, const ModulesPage(), w),
@@ -210,25 +236,25 @@ class StudentDashboardPage extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => page)),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         child: Ink(
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: w * 0.03),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, color: Colors.white, size: w * 0.05),
+                Icon(icon, color: Colors.white, size: w * 0.045),
                 SizedBox(width: w * 0.02),
                 Flexible(
                   child: Text(
                     title,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: w * 0.035,
+                      fontSize: w * 0.032,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                     ),

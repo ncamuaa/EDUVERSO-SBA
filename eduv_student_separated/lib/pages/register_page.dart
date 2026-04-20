@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+
 import '../config/api.dart';
+import '../utils/app_size.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -56,7 +58,7 @@ class _RegisterPageState extends State<RegisterPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registered successfully')),
         );
-        Navigator.pop(context); // go back to login
+        Navigator.pop(context);
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -75,7 +77,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
+    final w = AppSize.w(context); // ✅ FIXED
 
     return Scaffold(
       body: Container(
@@ -96,13 +98,14 @@ class _RegisterPageState extends State<RegisterPage> {
                 vertical: 20,
               ),
               child: Container(
+                width: w, // ✅ IMPORTANT (same as login)
                 padding: EdgeInsets.symmetric(
                   horizontal: w * 0.06,
                   vertical: w * 0.08,
                 ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF2C2DB0).withOpacity(0.88),
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
                   children: [
@@ -112,7 +115,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     Text(
                       'Register',
                       style: TextStyle(
-                        fontSize: w * 0.075,
+                        fontSize: w * 0.07,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -139,7 +142,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               ? Icons.visibility
                               : Icons.visibility_off,
                           color: Colors.white70,
-                          size: w * 0.05,
+                          size: w * 0.045,
                         ),
                       ),
                     ),
@@ -148,10 +151,10 @@ class _RegisterPageState extends State<RegisterPage> {
 
                     SizedBox(
                       width: double.infinity,
-                      height: w * 0.13,
+                      height: w * 0.12,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(14),
                           gradient: const LinearGradient(
                             colors: [Color(0xFF8F61FF), Color(0xFF6E5BFF)],
                           ),
@@ -163,12 +166,11 @@ class _RegisterPageState extends State<RegisterPage> {
                             shadowColor: Colors.transparent,
                           ),
                           child: isLoading
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white)
+                              ? const CircularProgressIndicator(color: Colors.white)
                               : Text(
                                   'Register',
                                   style: TextStyle(
-                                    fontSize: w * 0.045,
+                                    fontSize: w * 0.04,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
@@ -207,10 +209,10 @@ class _RegisterPageState extends State<RegisterPage> {
     Widget? suffix,
   }) {
     return Container(
-      height: w * 0.13,
+      height: w * 0.12,
       decoration: BoxDecoration(
         color: const Color(0xFF6667C7).withOpacity(0.75),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
       ),
       padding: EdgeInsets.symmetric(horizontal: w * 0.04),
       alignment: Alignment.center,
@@ -222,14 +224,14 @@ class _RegisterPageState extends State<RegisterPage> {
               obscureText: obscure,
               style: TextStyle(
                 color: Colors.white,
-                fontSize: w * 0.04,
+                fontSize: w * 0.038,
               ),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: hint,
                 hintStyle: TextStyle(
                   color: Colors.white70,
-                  fontSize: w * 0.04,
+                  fontSize: w * 0.038,
                 ),
               ),
             ),

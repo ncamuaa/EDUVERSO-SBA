@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../utils/app_size.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/student_page_base.dart';
 
@@ -8,7 +9,7 @@ class GameArenaPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
+    final w = AppSize.w(context); // ✅ FIXED
 
     final games = [
       (
@@ -39,7 +40,7 @@ class GameArenaPage extends StatelessWidget {
           Text(
             '🎮 Choose a Game',
             style: TextStyle(
-              fontSize: w * 0.055,
+              fontSize: w * 0.05, // slightly reduced
               fontWeight: FontWeight.w800,
               color: Colors.white,
             ),
@@ -58,15 +59,15 @@ class GameArenaPage extends StatelessWidget {
                         children: [
                           Icon(
                             Icons.circle,
-                            size: w * 0.045,
+                            size: w * 0.04, // slightly smaller
                             color: g.$3,
                           ),
-                          SizedBox(width: w * 0.025),
+                          SizedBox(width: w * 0.02),
                           Expanded(
                             child: Text(
                               g.$1,
                               style: TextStyle(
-                                fontSize: w * 0.05,
+                                fontSize: w * 0.045,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
                                 height: 1.2,
@@ -79,7 +80,7 @@ class GameArenaPage extends StatelessWidget {
                       Text(
                         g.$2,
                         style: TextStyle(
-                          fontSize: w * 0.04,
+                          fontSize: w * 0.038,
                           color: Colors.white70,
                           height: 1.4,
                         ),
@@ -87,19 +88,19 @@ class GameArenaPage extends StatelessWidget {
                       SizedBox(height: w * 0.045),
                       SizedBox(
                         width: double.infinity,
-                        height: w * 0.12,
+                        height: w * 0.11,
                         child: ElevatedButton(
                           onPressed: g.$4 ? () {} : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white.withOpacity(.12),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                           child: Text(
                             g.$4 ? '▶ Play' : 'Locked',
                             style: TextStyle(
-                              fontSize: w * 0.045,
+                              fontSize: w * 0.04,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
                             ),

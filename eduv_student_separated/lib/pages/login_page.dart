@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+
 import '../config/api.dart';
+import '../utils/app_size.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -67,7 +69,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
+    final w = AppSize.w(context); // ✅ FIXED
 
     return Scaffold(
       body: Container(
@@ -88,24 +90,24 @@ class _LoginPageState extends State<LoginPage> {
                 vertical: 20,
               ),
               child: Container(
-                width: double.infinity, // ✅ FIXED
+                width: w, // ✅ IMPORTANT: prevents wide stretching
                 padding: EdgeInsets.symmetric(
                   horizontal: w * 0.06,
                   vertical: w * 0.08,
                 ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF2C2DB0).withOpacity(0.88),
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
                   children: [
-                    Image.asset('assets/1.png', width: w * 0.25),
+                    Image.asset('assets/1.png', width: w * 0.22),
                     SizedBox(height: w * 0.05),
 
                     Text(
                       'Login',
                       style: TextStyle(
-                        fontSize: w * 0.08, // smaller
+                        fontSize: w * 0.07,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -123,11 +125,14 @@ class _LoginPageState extends State<LoginPage> {
                       passwordController,
                       w,
                       suffix: GestureDetector(
-                        onTap: () => setState(() => hidePassword = !hidePassword),
+                        onTap: () =>
+                            setState(() => hidePassword = !hidePassword),
                         child: Icon(
-                          hidePassword ? Icons.visibility : Icons.visibility_off,
+                          hidePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                           color: Colors.white70,
-                          size: w * 0.05,
+                          size: w * 0.045,
                         ),
                       ),
                     ),
@@ -135,11 +140,11 @@ class _LoginPageState extends State<LoginPage> {
                     SizedBox(height: w * 0.06),
 
                     SizedBox(
-                      width: double.infinity, // ✅ FULL WIDTH
-                      height: w * 0.13,
+                      width: double.infinity,
+                      height: w * 0.12,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(14),
                           gradient: const LinearGradient(
                             colors: [Color(0xFF8F61FF), Color(0xFF6E5BFF)],
                           ),
@@ -151,11 +156,12 @@ class _LoginPageState extends State<LoginPage> {
                             shadowColor: Colors.transparent,
                           ),
                           child: isLoading
-                              ? const CircularProgressIndicator(color: Colors.white)
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white)
                               : Text(
                                   'Login',
                                   style: TextStyle(
-                                    fontSize: w * 0.045,
+                                    fontSize: w * 0.04,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
@@ -184,7 +190,7 @@ class _LoginPageState extends State<LoginPage> {
                     Text(
                       'Or continue with',
                       style: TextStyle(
-                        fontSize: w * 0.04,
+                        fontSize: w * 0.038,
                         color: Colors.white,
                       ),
                     ),
@@ -192,12 +198,12 @@ class _LoginPageState extends State<LoginPage> {
                     SizedBox(height: w * 0.04),
 
                     CircleAvatar(
-                      radius: w * 0.06,
+                      radius: w * 0.055,
                       backgroundColor: Colors.white,
                       child: Text(
                         'G',
                         style: TextStyle(
-                          fontSize: w * 0.06,
+                          fontSize: w * 0.05,
                           fontWeight: FontWeight.bold,
                           color: Colors.blue,
                         ),
@@ -221,10 +227,10 @@ class _LoginPageState extends State<LoginPage> {
     Widget? suffix,
   }) {
     return Container(
-      height: w * 0.13, // smaller
+      height: w * 0.12,
       decoration: BoxDecoration(
         color: const Color(0xFF6667C7).withOpacity(0.75),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
       ),
       padding: EdgeInsets.symmetric(horizontal: w * 0.04),
       alignment: Alignment.center,
@@ -236,14 +242,14 @@ class _LoginPageState extends State<LoginPage> {
               obscureText: obscure,
               style: TextStyle(
                 color: Colors.white,
-                fontSize: w * 0.04,
+                fontSize: w * 0.038,
               ),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: hint,
                 hintStyle: TextStyle(
                   color: Colors.white70,
-                  fontSize: w * 0.04,
+                  fontSize: w * 0.038,
                 ),
               ),
             ),

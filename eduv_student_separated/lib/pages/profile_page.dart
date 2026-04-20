@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/student_data.dart';
 import '../theme/app_theme.dart';
+import '../utils/app_size.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/student_page_base.dart';
 import 'login_page.dart';
@@ -11,7 +12,7 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
+    final w = AppSize.w(context); // ✅ FIXED
 
     return StudentPageBase(
       title: 'Profile',
@@ -24,35 +25,35 @@ class ProfilePage extends StatelessWidget {
               children: [
                 SizedBox(height: w * 0.03),
                 Container(
-                  width: w * 0.5,
-                  height: w * 0.5,
+                  width: w * 0.42, // slightly smaller
+                  height: w * 0.42,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(18),
                     color: Colors.white.withOpacity(.08),
                     border: Border.all(color: Colors.white24, width: 2),
                   ),
                   child: Icon(
                     Icons.person,
-                    size: w * 0.25,
+                    size: w * 0.2,
                     color: Colors.white,
                   ),
                 ),
                 SizedBox(height: w * 0.04),
                 SizedBox(
-                  width: w * 0.5,
-                  height: w * 0.12,
+                  width: w * 0.45,
+                  height: w * 0.11,
                   child: ElevatedButton(
                     onPressed: () {},
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white24,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: Text(
                       'Choose Image',
                       style: TextStyle(
-                        fontSize: w * 0.04,
+                        fontSize: w * 0.038,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
@@ -73,7 +74,7 @@ class ProfilePage extends StatelessWidget {
                 Text(
                   StudentData.name,
                   style: TextStyle(
-                    fontSize: w * 0.06,
+                    fontSize: w * 0.055,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
@@ -82,7 +83,7 @@ class ProfilePage extends StatelessWidget {
                 Text(
                   'Email: ${StudentData.email}',
                   style: TextStyle(
-                    fontSize: w * 0.04,
+                    fontSize: w * 0.038,
                     color: AppTheme.textSoft,
                   ),
                 ),
@@ -90,7 +91,7 @@ class ProfilePage extends StatelessWidget {
                 Text(
                   'Section: BSIT 3A',
                   style: TextStyle(
-                    fontSize: w * 0.038,
+                    fontSize: w * 0.035,
                     color: AppTheme.textSoft,
                   ),
                 ),
@@ -111,7 +112,7 @@ class ProfilePage extends StatelessWidget {
                       Text(
                         '🏆 Achievements',
                         style: TextStyle(
-                          fontSize: w * 0.045,
+                          fontSize: w * 0.04,
                           fontWeight: FontWeight.w800,
                           color: Colors.white,
                         ),
@@ -119,11 +120,11 @@ class ProfilePage extends StatelessWidget {
                       SizedBox(height: w * 0.03),
                       Text(
                         'Level: 1',
-                        style: TextStyle(fontSize: w * 0.04, color: Colors.white),
+                        style: TextStyle(fontSize: w * 0.038, color: Colors.white),
                       ),
                       Text(
                         'Streak: 0 days',
-                        style: TextStyle(fontSize: w * 0.04, color: Colors.white),
+                        style: TextStyle(fontSize: w * 0.038, color: Colors.white),
                       ),
                     ],
                   ),
@@ -138,7 +139,7 @@ class ProfilePage extends StatelessWidget {
                       Text(
                         '📊 Stats',
                         style: TextStyle(
-                          fontSize: w * 0.045,
+                          fontSize: w * 0.04,
                           fontWeight: FontWeight.w800,
                           color: Colors.white,
                         ),
@@ -146,11 +147,11 @@ class ProfilePage extends StatelessWidget {
                       SizedBox(height: w * 0.03),
                       Text(
                         'XP: 60',
-                        style: TextStyle(fontSize: w * 0.04, color: Colors.white),
+                        style: TextStyle(fontSize: w * 0.038, color: Colors.white),
                       ),
                       Text(
                         'Course: BSIT',
-                        style: TextStyle(fontSize: w * 0.04, color: Colors.white),
+                        style: TextStyle(fontSize: w * 0.038, color: Colors.white),
                       ),
                     ],
                   ),
@@ -163,7 +164,7 @@ class ProfilePage extends StatelessWidget {
 
           /// LOGOUT BUTTON
           SizedBox(
-            height: w * 0.13,
+            height: w * 0.12,
             child: ElevatedButton(
               onPressed: () => Navigator.pushAndRemoveUntil(
                 context,
@@ -173,13 +174,13 @@ class ProfilePage extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.red,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
               child: Text(
                 'Logout',
                 style: TextStyle(
-                  fontSize: w * 0.045,
+                  fontSize: w * 0.04,
                   fontWeight: FontWeight.w800,
                   color: Colors.white,
                 ),
