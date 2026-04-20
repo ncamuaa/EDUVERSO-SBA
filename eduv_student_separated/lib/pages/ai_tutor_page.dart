@@ -18,45 +18,95 @@ class _AITutorPageState extends State<AITutorPage> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final w = size.width;
+
+    // responsive sizes
+    final horizontalPadding = w * 0.045;
+    final smallGap = w * 0.02;
+    final mediumGap = w * 0.03;
+
+    final xpFont = w * 0.11; // around 39 on 360 width
+    final levelFont = w * 0.045;
+    final tabFont = w * 0.035;
+    final bubbleFont = w * 0.04;
+    final timeFont = w * 0.03;
+    final inputFont = w * 0.04;
+    final sendFont = w * 0.04;
+
+    final tabHeight = w * 0.12;
+    final avatarRadius = w * 0.06;
+    final actionSize = w * 0.12;
+    final iconSize = w * 0.06;
+    final inputHeight = w * 0.13;
+    final sendWidth = w * 0.2;
+
     return StudentPageBase(
       title: 'AI Tutor',
       child: Column(
         children: [
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                12,
+                horizontalPadding,
+                12,
+              ),
               children: [
                 appCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('0', style: TextStyle(fontSize: 54, fontWeight: FontWeight.w800, color: Colors.white)),
-                      const SizedBox(height: 4),
-                      const Text('XP • Level 1', style: TextStyle(fontSize: 22, color: AppTheme.textSoft)),
-                      const SizedBox(height: 16),
+                      Text(
+                        '0',
+                        style: TextStyle(
+                          fontSize: xpFont,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(height: smallGap),
+                      Text(
+                        'XP • Level 1',
+                        style: TextStyle(
+                          fontSize: levelFont,
+                          color: AppTheme.textSoft,
+                        ),
+                      ),
+                      SizedBox(height: mediumGap),
                       progressBar(0.0),
                     ],
                   ),
                 ),
-                const SizedBox(height: 18),
+                SizedBox(height: mediumGap),
                 Row(
                   children: List.generate(labels.length, (i) {
                     final active = i == selected;
                     return Expanded(
                       child: Padding(
-                        padding: EdgeInsets.only(right: i == labels.length - 1 ? 0 : 10),
+                        padding: EdgeInsets.only(
+                          right: i == labels.length - 1 ? 0 : 8,
+                        ),
                         child: GestureDetector(
                           onTap: () => setState(() => selected = i),
                           child: Container(
-                            height: 54,
+                            height: tabHeight,
                             decoration: BoxDecoration(
-                              color: active ? const Color(0xFF74EEFF) : Colors.white.withOpacity(.12),
-                              borderRadius: BorderRadius.circular(18),
+                              color: active
+                                  ? const Color(0xFF74EEFF)
+                                  : Colors.white.withOpacity(.12),
+                              borderRadius: BorderRadius.circular(14),
                             ),
                             alignment: Alignment.center,
                             child: Text(
                               labels[i],
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: active ? Colors.black87 : Colors.white),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: tabFont,
+                                fontWeight: FontWeight.w800,
+                                color: active ? Colors.black87 : Colors.white,
+                              ),
                             ),
                           ),
                         ),
@@ -64,47 +114,84 @@ class _AITutorPageState extends State<AITutorPage> {
                     );
                   }),
                 ),
-                const SizedBox(height: 28),
+                SizedBox(height: w * 0.06),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const CircleAvatar(radius: 28, backgroundColor: Colors.white24, child: Icon(Icons.smart_toy, color: Colors.white)),
-                    const SizedBox(width: 12),
+                    CircleAvatar(
+                      radius: avatarRadius,
+                      backgroundColor: Colors.white24,
+                      child: Icon(
+                        Icons.smart_toy,
+                        color: Colors.white,
+                        size: iconSize,
+                      ),
+                    ),
+                    SizedBox(width: w * 0.03),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                            decoration: BoxDecoration(color: Colors.white.withOpacity(.12), borderRadius: BorderRadius.circular(18)),
-                            child: const Text('Hi Student! Ready to learn?', style: TextStyle(fontSize: 18, color: Colors.white)),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: w * 0.04,
+                              vertical: w * 0.03,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(.12),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Text(
+                              'Hi Student! Ready to learn?',
+                              style: TextStyle(
+                                fontSize: bubbleFont,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
-                          const SizedBox(height: 8),
-                          const Text('8:13 PM', style: TextStyle(fontSize: 14, color: AppTheme.textSoft)),
+                          SizedBox(height: smallGap),
+                          Text(
+                            '8:13 PM',
+                            style: TextStyle(
+                              fontSize: timeFont,
+                              color: AppTheme.textSoft,
+                            ),
+                          ),
                         ],
                       ),
-                    )
+                    ),
                   ],
-                )
+                ),
               ],
             ),
           ),
           Container(
             color: Colors.black12,
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 18),
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding,
+              10,
+              horizontalPadding,
+              14,
+            ),
             child: Row(
               children: [
-                _circleAction(Icons.attach_file),
-                const SizedBox(width: 10),
+                _circleAction(Icons.attach_file, actionSize, iconSize),
+                SizedBox(width: 8),
                 Expanded(
                   child: Container(
-                    height: 56,
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(.12), borderRadius: BorderRadius.circular(20)),
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    height: inputHeight,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(.12),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: w * 0.04),
                     alignment: Alignment.centerLeft,
                     child: TextField(
                       controller: controller,
-                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: inputFont,
+                      ),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         hintText: 'Speak or type...',
@@ -113,21 +200,31 @@ class _AITutorPageState extends State<AITutorPage> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: 8),
                 SizedBox(
-                  width: 110,
-                  height: 56,
+                  width: sendWidth,
+                  height: inputHeight,
                   child: ElevatedButton(
                     onPressed: () {},
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF9074FF),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      padding: EdgeInsets.zero,
                     ),
-                    child: const Text('Send', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white)),
+                    child: Text(
+                      'Send',
+                      style: TextStyle(
+                        fontSize: sendFont,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                _circleAction(Icons.mic),
+                SizedBox(width: 8),
+                _circleAction(Icons.mic, actionSize, iconSize),
               ],
             ),
           ),
@@ -136,12 +233,15 @@ class _AITutorPageState extends State<AITutorPage> {
     );
   }
 
-  Widget _circleAction(IconData icon) {
+  Widget _circleAction(IconData icon, double size, double iconSize) {
     return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(color: Colors.white.withOpacity(.12), borderRadius: BorderRadius.circular(18)),
-      child: Icon(icon, color: Colors.white, size: 28),
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(.12),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Icon(icon, color: Colors.white, size: iconSize),
     );
   }
 }

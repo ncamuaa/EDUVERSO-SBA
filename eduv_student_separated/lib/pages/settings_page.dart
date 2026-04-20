@@ -26,58 +26,47 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+
     return StudentPageBase(
       title: 'Settings',
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 18),
+        padding: EdgeInsets.fromLTRB(w * 0.045, 10, w * 0.045, 16),
         children: [
+          _switchCard('Notifications', 'Enable reminders', notifications,
+              (v) => setState(() => notifications = v), w),
           _switchCard(
-            'Notifications',
-            'Enable reminders',
-            notifications,
-            (v) => setState(() => notifications = v),
-          ),
-          _switchCard(
-            'Sound',
-            'UI click sounds',
-            sound,
-            (v) => setState(() => sound = v),
-          ),
-          _switchCard(
-            'Reduced Motion',
-            'Less animations',
-            reducedMotion,
-            (v) => setState(() => reducedMotion = v),
-          ),
-          _switchCard(
-            'Dark Mode',
-            'Switch theme',
-            darkMode,
-            (v) => setState(() => darkMode = v),
-          ),
-          const SizedBox(height: 12),
+              'Sound', 'UI click sounds', sound, (v) => setState(() => sound = v), w),
+          _switchCard('Reduced Motion', 'Less animations', reducedMotion,
+              (v) => setState(() => reducedMotion = v), w),
+          _switchCard('Dark Mode', 'Switch theme', darkMode,
+              (v) => setState(() => darkMode = v), w),
+
+          SizedBox(height: w * 0.03),
+
+          /// ACCENT COLORS
           appCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Accent Color',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: w * 0.045,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: w * 0.03),
                 Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
+                  spacing: w * 0.03,
+                  runSpacing: w * 0.03,
                   children: List.generate(accents.length, (i) {
                     return GestureDetector(
                       onTap: () => setState(() => accentIndex = i),
                       child: Container(
-                        width: 40,
-                        height: 40,
+                        width: w * 0.09,
+                        height: w * 0.09,
                         decoration: BoxDecoration(
                           color: accents[i],
                           shape: BoxShape.circle,
@@ -95,63 +84,63 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+
+          SizedBox(height: w * 0.03),
+
+          /// CHANGE EMAIL
           appCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Change Email',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: w * 0.045,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 12),
-                Material(
-                  color: Colors.transparent,
-                  child: Container(
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(.1),
-                      borderRadius: BorderRadius.circular(14),
+                SizedBox(height: w * 0.03),
+                Container(
+                  height: w * 0.12,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: w * 0.03),
+                  alignment: Alignment.centerLeft,
+                  child: TextField(
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: w * 0.04,
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    alignment: Alignment.centerLeft,
-                    child: const TextField(
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        hintText: 'New email',
-                        hintStyle: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'New email',
+                      hintStyle: TextStyle(
+                        color: Colors.white70,
+                        fontSize: w * 0.04,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: w * 0.03),
                 SizedBox(
                   width: double.infinity,
-                  height: 42,
+                  height: w * 0.11,
                   child: ElevatedButton(
                     onPressed: () {},
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF9E7AFF),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       padding: EdgeInsets.zero,
                     ),
-                    child: const Text(
+                    child: Text(
                       'Update Email',
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: w * 0.04,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
@@ -171,9 +160,10 @@ class _SettingsPageState extends State<SettingsPage> {
     String subtitle,
     bool value,
     ValueChanged<bool> onChanged,
+    double w,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: w * 0.03),
       child: appCard(
         child: Row(
           children: [
@@ -183,30 +173,27 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: TextStyle(
+                      fontSize: w * 0.045,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: w * 0.01),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      fontSize: 13,
+                    style: TextStyle(
+                      fontSize: w * 0.035,
                       color: Colors.white70,
                     ),
                   ),
                 ],
               ),
             ),
-            Material(
-              color: Colors.transparent,
-              child: Switch(
-                value: value,
-                onChanged: onChanged,
-                activeColor: const Color(0xFFD8C3FF),
-              ),
+            Switch(
+              value: value,
+              onChanged: onChanged,
+              activeColor: const Color(0xFFD8C3FF),
             ),
           ],
         ),

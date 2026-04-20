@@ -9,54 +9,100 @@ class PeerFeedbackPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+
     return StudentPageBase(
       title: 'Peer Feedback',
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 22),
+        padding: EdgeInsets.fromLTRB(w * 0.045, 12, w * 0.045, 18),
         children: [
           Row(
             children: [
               const Spacer(),
               Container(
-                width: 170,
-                height: 52,
-                decoration: BoxDecoration(color: Colors.white.withOpacity(.12), borderRadius: BorderRadius.circular(18)),
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: const Row(
+                width: w * 0.42,
+                height: w * 0.12,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: EdgeInsets.symmetric(horizontal: w * 0.035),
+                child: Row(
                   children: [
-                    Expanded(child: Text('Search', style: TextStyle(fontSize: 18, color: Colors.white70))),
-                    Icon(Icons.search, color: Colors.white70)
+                    Expanded(
+                      child: Text(
+                        'Search',
+                        style: TextStyle(
+                          fontSize: w * 0.04,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.search,
+                      color: Colors.white70,
+                      size: w * 0.05,
+                    ),
                   ],
                 ),
               )
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: w * 0.035),
           ...StudentData.peerFeedback.map(
             (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 18),
+              padding: EdgeInsets.only(bottom: w * 0.04),
               child: appCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        pill(item.date == '12/10/2025' ? 'General' : 'Feedback'),
+                        Flexible(
+                          child: pill(
+                            item.date == '12/10/2025' ? 'General' : 'Feedback',
+                          ),
+                        ),
                         const Spacer(),
-                        Text(item.date, style: const TextStyle(fontSize: 18, color: Colors.white70)),
+                        Text(
+                          item.date,
+                          style: TextStyle(
+                            fontSize: w * 0.035,
+                            color: Colors.white70,
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 18),
-                    Text(item.title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
-                    const SizedBox(height: 14),
-                    Text(item.body, style: const TextStyle(fontSize: 18, height: 1.45, color: Colors.white70)),
-                    const SizedBox(height: 16),
-                    const Text('⭐⭐⭐⭐⭐', style: TextStyle(fontSize: 30)),
+                    SizedBox(height: w * 0.04),
+                    Text(
+                      item.title,
+                      style: TextStyle(
+                        fontSize: w * 0.055,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        height: 1.2,
+                      ),
+                    ),
+                    SizedBox(height: w * 0.03),
+                    Text(
+                      item.body,
+                      style: TextStyle(
+                        fontSize: w * 0.04,
+                        height: 1.45,
+                        color: Colors.white70,
+                      ),
+                    ),
+                    SizedBox(height: w * 0.035),
+                    Text(
+                      '⭐⭐⭐⭐⭐',
+                      style: TextStyle(fontSize: w * 0.065),
+                    ),
                   ],
                 ),
               ),
             ),
-          )
+          ),
         ],
       ),
     );

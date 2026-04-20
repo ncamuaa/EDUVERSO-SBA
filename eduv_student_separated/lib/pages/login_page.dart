@@ -67,6 +67,8 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -81,49 +83,63 @@ class _LoginPageState extends State<LoginPage> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              padding: EdgeInsets.symmetric(
+                horizontal: w * 0.06,
+                vertical: 20,
+              ),
               child: Container(
-                width: 380,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+                width: double.infinity, // ✅ FIXED
+                padding: EdgeInsets.symmetric(
+                  horizontal: w * 0.06,
+                  vertical: w * 0.08,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF2C2DB0).withOpacity(0.88),
-                  borderRadius: BorderRadius.circular(34),
+                  borderRadius: BorderRadius.circular(24),
                 ),
                 child: Column(
                   children: [
-                    Image.asset('assets/1.png', width: 120),
-                    const SizedBox(height: 20),
-                    const Text(
+                    Image.asset('assets/1.png', width: w * 0.25),
+                    SizedBox(height: w * 0.05),
+
+                    Text(
                       'Login',
-                      style: TextStyle(fontSize: 42, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(
+                        fontSize: w * 0.08, // smaller
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
-                    const SizedBox(height: 30),
 
-                    _inputField('Email', false, emailController),
+                    SizedBox(height: w * 0.06),
 
-                    const SizedBox(height: 18),
+                    _inputField('Email', false, emailController, w),
+
+                    SizedBox(height: w * 0.04),
 
                     _inputField(
                       'Password',
                       hidePassword,
                       passwordController,
+                      w,
                       suffix: GestureDetector(
                         onTap: () => setState(() => hidePassword = !hidePassword),
                         child: Icon(
                           hidePassword ? Icons.visibility : Icons.visibility_off,
                           color: Colors.white70,
+                          size: w * 0.05,
                         ),
                       ),
                     ),
 
-                    const SizedBox(height: 28),
+                    SizedBox(height: w * 0.06),
 
                     SizedBox(
-                      width: 220,
-                      height: 60,
+                      width: double.infinity, // ✅ FULL WIDTH
+                      height: w * 0.13,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(22),
+                          borderRadius: BorderRadius.circular(16),
                           gradient: const LinearGradient(
                             colors: [Color(0xFF8F61FF), Color(0xFF6E5BFF)],
                           ),
@@ -136,46 +152,52 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           child: isLoading
                               ? const CircularProgressIndicator(color: Colors.white)
-                              : const Text(
+                              : Text(
                                   'Login',
                                   style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white),
+                                    fontSize: w * 0.045,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                         ),
                       ),
                     ),
 
-                    const SizedBox(height: 20),
+                    SizedBox(height: w * 0.04),
 
-                    // ✅ REGISTER BUTTON (YOUR REQUEST)
                     TextButton(
                       onPressed: () {
                         Navigator.pushNamed(context, '/register');
                       },
-                      child: const Text(
+                      child: Text(
                         "Don't have an account? Register",
-                        style: TextStyle(color: Colors.white70),
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: w * 0.035,
+                        ),
                       ),
                     ),
 
-                    const SizedBox(height: 10),
+                    SizedBox(height: w * 0.03),
 
-                    const Text(
+                    Text(
                       'Or continue with',
-                      style: TextStyle(fontSize: 16, color: Colors.white),
+                      style: TextStyle(
+                        fontSize: w * 0.04,
+                        color: Colors.white,
+                      ),
                     ),
 
-                    const SizedBox(height: 18),
+                    SizedBox(height: w * 0.04),
 
-                    const CircleAvatar(
-                      radius: 24,
+                    CircleAvatar(
+                      radius: w * 0.06,
                       backgroundColor: Colors.white,
                       child: Text(
                         'G',
                         style: TextStyle(
-                          fontSize: 28,
+                          fontSize: w * 0.06,
                           fontWeight: FontWeight.bold,
                           color: Colors.blue,
                         ),
@@ -194,16 +216,17 @@ class _LoginPageState extends State<LoginPage> {
   Widget _inputField(
     String hint,
     bool obscure,
-    TextEditingController controller, {
+    TextEditingController controller,
+    double w, {
     Widget? suffix,
   }) {
     return Container(
-      height: 68,
+      height: w * 0.13, // smaller
       decoration: BoxDecoration(
         color: const Color(0xFF6667C7).withOpacity(0.75),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: EdgeInsets.symmetric(horizontal: w * 0.04),
       alignment: Alignment.center,
       child: Row(
         children: [
@@ -211,11 +234,17 @@ class _LoginPageState extends State<LoginPage> {
             child: TextField(
               controller: controller,
               obscureText: obscure,
-              style: const TextStyle(color: Colors.white, fontSize: 18),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: w * 0.04,
+              ),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: hint,
-                hintStyle: const TextStyle(color: Colors.white70, fontSize: 18),
+                hintStyle: TextStyle(
+                  color: Colors.white70,
+                  fontSize: w * 0.04,
+                ),
               ),
             ),
           ),
