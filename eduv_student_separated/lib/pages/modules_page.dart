@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/student_data.dart';
 import '../theme/app_theme.dart';
+import '../utils/app_size.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/student_page_base.dart';
 
@@ -10,7 +11,7 @@ class ModulesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
+    final w = AppSize.w(context);
 
     return StudentPageBase(
       title: 'Available Modules',
@@ -20,7 +21,7 @@ class ModulesPage extends StatelessWidget {
           Text(
             '📘 Categorized Topics',
             style: TextStyle(
-              fontSize: w * 0.04,
+              fontSize: w * 0.038,
               color: AppTheme.textSoft,
             ),
           ),
@@ -35,7 +36,7 @@ class ModulesPage extends StatelessWidget {
                     Text(
                       module.title,
                       style: TextStyle(
-                        fontSize: w * 0.055,
+                        fontSize: w * 0.05,
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
                         height: 1.2,
@@ -45,7 +46,7 @@ class ModulesPage extends StatelessWidget {
                     Text(
                       module.description,
                       style: TextStyle(
-                        fontSize: w * 0.04,
+                        fontSize: w * 0.038,
                         color: Colors.white70,
                         height: 1.35,
                       ),
@@ -54,17 +55,17 @@ class ModulesPage extends StatelessWidget {
                     Text(
                       module.category,
                       style: TextStyle(
-                        fontSize: w * 0.038,
+                        fontSize: w * 0.036,
                         color: AppTheme.accent2,
                       ),
                     ),
                     SizedBox(height: w * 0.04),
                     SizedBox(
                       width: double.infinity,
-                      height: w * 0.12,
+                      height: w * 0.11,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(12),
                           gradient: const LinearGradient(
                             colors: [Color(0xFF8A63FF), Color(0xFFA77BFF)],
                           ),
@@ -75,13 +76,13 @@ class ModulesPage extends StatelessWidget {
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                           child: Text(
                             'Open',
                             style: TextStyle(
-                              fontSize: w * 0.045,
+                              fontSize: w * 0.04,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
                             ),

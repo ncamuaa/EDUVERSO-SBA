@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/student_data.dart';
 import '../theme/app_theme.dart';
+import '../utils/app_size.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/student_page_base.dart';
 
@@ -11,12 +12,11 @@ class AnnouncementsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final item = StudentData.announcements.first;
-    final size = MediaQuery.of(context).size;
-    final w = size.width;
+    final w = AppSize.w(context);
 
     final pagePadding = w * 0.04;
-    final titleFont = w * 0.05; // around 18 on 360px width
-    final bodyFont = w * 0.036; // around 13 on 360px width
+    final titleFont = w * 0.05;
+    final bodyFont = w * 0.036;
     final dateFont = w * 0.032;
     final buttonFont = w * 0.035;
 
@@ -83,11 +83,26 @@ class AnnouncementsPage extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _navBtn('◀ Prev', width: w * 0.22, height: w * 0.11, fontSize: buttonFont),
+              _navBtn(
+                '◀ Prev',
+                width: w * 0.22,
+                height: w * 0.11,
+                fontSize: buttonFont,
+              ),
               SizedBox(width: w * 0.025),
-              _navBtn('1', width: w * 0.11, height: w * 0.11, fontSize: buttonFont),
+              _navBtn(
+                '1',
+                width: w * 0.11,
+                height: w * 0.11,
+                fontSize: buttonFont,
+              ),
               SizedBox(width: w * 0.025),
-              _navBtn('Next ▶', width: w * 0.22, height: w * 0.11, fontSize: buttonFont),
+              _navBtn(
+                'Next ▶',
+                width: w * 0.22,
+                height: w * 0.11,
+                fontSize: buttonFont,
+              ),
             ],
           ),
         ],

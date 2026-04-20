@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../utils/app_size.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/student_page_base.dart';
 
@@ -26,7 +27,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
+    final w = AppSize.w(context); // ✅ FIXED
 
     return StudentPageBase(
       title: 'Settings',
@@ -52,21 +53,21 @@ class _SettingsPageState extends State<SettingsPage> {
                 Text(
                   'Accent Color',
                   style: TextStyle(
-                    fontSize: w * 0.045,
+                    fontSize: w * 0.042,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
                 ),
                 SizedBox(height: w * 0.03),
                 Wrap(
-                  spacing: w * 0.03,
-                  runSpacing: w * 0.03,
+                  spacing: w * 0.025,
+                  runSpacing: w * 0.025,
                   children: List.generate(accents.length, (i) {
                     return GestureDetector(
                       onTap: () => setState(() => accentIndex = i),
                       child: Container(
-                        width: w * 0.09,
-                        height: w * 0.09,
+                        width: w * 0.08,
+                        height: w * 0.08,
                         decoration: BoxDecoration(
                           color: accents[i],
                           shape: BoxShape.circle,
@@ -95,14 +96,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 Text(
                   'Change Email',
                   style: TextStyle(
-                    fontSize: w * 0.045,
+                    fontSize: w * 0.042,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
                 ),
                 SizedBox(height: w * 0.03),
                 Container(
-                  height: w * 0.12,
+                  height: w * 0.11,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(.1),
                     borderRadius: BorderRadius.circular(12),
@@ -112,14 +113,14 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: TextField(
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: w * 0.04,
+                      fontSize: w * 0.038,
                     ),
                     decoration: InputDecoration(
                       border: InputBorder.none,
                       hintText: 'New email',
                       hintStyle: TextStyle(
                         color: Colors.white70,
-                        fontSize: w * 0.04,
+                        fontSize: w * 0.038,
                       ),
                     ),
                   ),
@@ -174,7 +175,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   Text(
                     title,
                     style: TextStyle(
-                      fontSize: w * 0.045,
+                      fontSize: w * 0.042,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
                     ),
@@ -183,7 +184,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      fontSize: w * 0.035,
+                      fontSize: w * 0.033,
                       color: Colors.white70,
                     ),
                   ),

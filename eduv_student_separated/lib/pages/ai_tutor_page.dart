@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../utils/app_size.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/student_page_base.dart';
 
@@ -17,16 +18,20 @@ class _AITutorPageState extends State<AITutorPage> {
   final labels = ['Study', 'Explain', 'Exam', 'Quiz'];
 
   @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final w = size.width;
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
 
-    // responsive sizes
+  @override
+  Widget build(BuildContext context) {
+    final w = AppSize.w(context);
+
     final horizontalPadding = w * 0.045;
     final smallGap = w * 0.02;
     final mediumGap = w * 0.03;
 
-    final xpFont = w * 0.11; // around 39 on 360 width
+    final xpFont = w * 0.11;
     final levelFont = w * 0.045;
     final tabFont = w * 0.035;
     final bubbleFont = w * 0.04;
@@ -176,7 +181,7 @@ class _AITutorPageState extends State<AITutorPage> {
             child: Row(
               children: [
                 _circleAction(Icons.attach_file, actionSize, iconSize),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Container(
                     height: inputHeight,
@@ -200,7 +205,7 @@ class _AITutorPageState extends State<AITutorPage> {
                     ),
                   ),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 SizedBox(
                   width: sendWidth,
                   height: inputHeight,
@@ -223,7 +228,7 @@ class _AITutorPageState extends State<AITutorPage> {
                     ),
                   ),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 _circleAction(Icons.mic, actionSize, iconSize),
               ],
             ),
@@ -241,7 +246,11 @@ class _AITutorPageState extends State<AITutorPage> {
         color: Colors.white.withOpacity(.12),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Icon(icon, color: Colors.white, size: iconSize),
+      child: Icon(
+        icon,
+        color: Colors.white,
+        size: iconSize,
+      ),
     );
   }
 }
