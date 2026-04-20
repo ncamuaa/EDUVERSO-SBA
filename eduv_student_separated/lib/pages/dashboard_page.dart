@@ -16,92 +16,161 @@ class StudentDashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+
     return AppShell(
       child: Builder(
         builder: (context) => SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+          padding: EdgeInsets.fromLTRB(w * 0.045, 14, w * 0.045, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              /// HEADER
               Row(
                 children: [
                   IconButton(
                     onPressed: () => Scaffold.of(context).openDrawer(),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.white.withOpacity(.08),
-                      minimumSize: const Size(58, 58),
+                      minimumSize: Size(w * 0.13, w * 0.13),
                     ),
-                    icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 28),
+                    icon: Icon(Icons.menu_rounded,
+                        color: Colors.white, size: w * 0.06),
                   ),
                   const Spacer(),
                   const LogoText(),
                   const Spacer(),
-                  const CircleAvatar(radius: 26, backgroundColor: Colors.white24, child: Icon(Icons.person, color: Colors.white)),
+                  CircleAvatar(
+                    radius: w * 0.06,
+                    backgroundColor: Colors.white24,
+                    child: Icon(Icons.person,
+                        color: Colors.white, size: w * 0.05),
+                  ),
                 ],
               ),
-              const SizedBox(height: 22),
-              const Text('Welcome,', style: TextStyle(fontSize: 28, color: Colors.white70)),
-              const Text(StudentData.name, style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: Colors.white)),
-              const SizedBox(height: 4),
-              const Text('Shape your future, one lesson at a time.', style: TextStyle(fontSize: 18, color: AppTheme.textSoft)),
-              const SizedBox(height: 18),
+
+              SizedBox(height: w * 0.05),
+
+              /// WELCOME TEXT
+              Text(
+                'Welcome,',
+                style: TextStyle(fontSize: w * 0.06, color: Colors.white70),
+              ),
+              Text(
+                StudentData.name,
+                style: TextStyle(
+                  fontSize: w * 0.075,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Shape your future, one lesson at a time.',
+                style: TextStyle(
+                  fontSize: w * 0.04,
+                  color: AppTheme.textSoft,
+                ),
+              ),
+
+              SizedBox(height: w * 0.05),
+
+              /// DAILY FOCUS
               appCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Daily Focus', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white70)),
-                    const SizedBox(height: 6),
-                    const Text('Introduction to Programming', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
-                    const SizedBox(height: 14),
+                    Text('Daily Focus',
+                        style: TextStyle(
+                            fontSize: w * 0.045,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white70)),
+                    SizedBox(height: 6),
+                    Text('Introduction to Programming',
+                        style: TextStyle(
+                            fontSize: w * 0.055,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white)),
+                    SizedBox(height: w * 0.03),
                     Row(
                       children: [
                         Expanded(child: progressBar(0.5)),
-                        const SizedBox(width: 10),
-                        const Text('50%', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+                        SizedBox(width: 8),
+                        Text('50%',
+                            style: TextStyle(
+                                fontSize: w * 0.04,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white)),
                       ],
                     ),
-                    const SizedBox(height: 18),
+                    SizedBox(height: w * 0.04),
                     Container(
-                      height: 140,
+                      height: w * 0.3,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        gradient: const LinearGradient(colors: [Color(0xFF071C66), Color(0xFF1558E1)]),
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: const LinearGradient(
+                            colors: [Color(0xFF071C66), Color(0xFF1558E1)]),
                       ),
                       alignment: Alignment.center,
-                      child: const Text(
+                      child: Text(
                         'INTRODUCTION TO PROGRAMMING',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 22, letterSpacing: 1, fontWeight: FontWeight.w700, color: Colors.white),
+                        style: TextStyle(
+                          fontSize: w * 0.045,
+                          letterSpacing: 1,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
                       ),
                     )
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+
+              SizedBox(height: w * 0.04),
+
+              /// PROGRESS
               appCard(
                 child: Row(
                   children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text('Your Progress', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white70)),
+                        children: [
+                          Text('Your Progress',
+                              style: TextStyle(
+                                  fontSize: w * 0.045,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white70)),
                           SizedBox(height: 4),
-                          Text('Level 1', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white)),
+                          Text('Level 1',
+                              style: TextStyle(
+                                  fontSize: w * 0.06,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white)),
                           SizedBox(height: 4),
-                          Text('60/100 XP', style: TextStyle(fontSize: 20, color: Colors.white)),
-                          SizedBox(height: 8),
-                          Text('🔥 0-day streak', style: TextStyle(fontSize: 18, color: Colors.white)),
+                          Text('60/100 XP',
+                              style: TextStyle(
+                                  fontSize: w * 0.045,
+                                  color: Colors.white)),
+                          SizedBox(height: 6),
+                          Text('🔥 0-day streak',
+                              style: TextStyle(
+                                  fontSize: w * 0.04,
+                                  color: Colors.white)),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    SizedBox(width: w * 0.04),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('60% to next level', style: TextStyle(fontSize: 18, color: Colors.white70)),
-                          const SizedBox(height: 14),
+                          Text('60% to next level',
+                              style: TextStyle(
+                                  fontSize: w * 0.04,
+                                  color: Colors.white70)),
+                          SizedBox(height: w * 0.03),
                           progressBar(0.6),
                         ],
                       ),
@@ -109,21 +178,24 @@ class StudentDashboardPage extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 18),
+
+              SizedBox(height: w * 0.05),
+
+              /// GRID
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 2.25,
+                crossAxisSpacing: w * 0.04,
+                mainAxisSpacing: w * 0.04,
+                childAspectRatio: 2.3,
                 children: [
-                  _homeButton(context, 'Voice Tutor', AppTheme.blue, Icons.mic, const AITutorPage()),
-                  _homeButton(context, 'Modules', AppTheme.green, Icons.menu_book_rounded, const ModulesPage()),
-                  _homeButton(context, 'Peer Feedback', const Color(0xFFFF5F98), Icons.forum_outlined, const PeerFeedbackPage()),
-                  _homeButton(context, 'Game Arena', AppTheme.yellow, Icons.psychology_alt, const GameArenaPage()),
-                  _homeButton(context, 'Announcement', const Color(0xFF4AA0FF), Icons.campaign_outlined, const AnnouncementsPage()),
-                  _homeButton(context, 'Settings', const Color(0xFFA175FF), Icons.settings, const SettingsPage()),
+                  _homeButton(context, 'Voice Tutor', AppTheme.blue, Icons.mic, const AITutorPage(), w),
+                  _homeButton(context, 'Modules', AppTheme.green, Icons.menu_book_rounded, const ModulesPage(), w),
+                  _homeButton(context, 'Peer Feedback', const Color(0xFFFF5F98), Icons.forum_outlined, const PeerFeedbackPage(), w),
+                  _homeButton(context, 'Game Arena', AppTheme.yellow, Icons.psychology_alt, const GameArenaPage(), w),
+                  _homeButton(context, 'Announcement', const Color(0xFF4AA0FF), Icons.campaign_outlined, const AnnouncementsPage(), w),
+                  _homeButton(context, 'Settings', const Color(0xFFA175FF), Icons.settings, const SettingsPage(), w),
                 ],
               ),
             ],
@@ -133,23 +205,37 @@ class StudentDashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _homeButton(BuildContext context, String title, Color color, IconData icon, Widget page) {
+  Widget _homeButton(BuildContext context, String title, Color color, IconData icon, Widget page, double w) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => page)),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(18),
         child: Ink(
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(24)),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.white, size: 30),
-              const SizedBox(width: 12),
-              Flexible(
-                child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
-              ),
-            ],
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: w * 0.03),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: Colors.white, size: w * 0.05),
+                SizedBox(width: w * 0.02),
+                Flexible(
+                  child: Text(
+                    title,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: w * 0.035,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

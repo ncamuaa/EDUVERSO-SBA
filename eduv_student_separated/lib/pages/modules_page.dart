@@ -10,38 +10,82 @@ class ModulesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+
     return StudentPageBase(
       title: 'Available Modules',
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 20, 18, 24),
+        padding: EdgeInsets.fromLTRB(w * 0.045, 14, w * 0.045, 18),
         children: [
-          const Text('📘 Categorized Topics', style: TextStyle(fontSize: 18, color: AppTheme.textSoft)),
-          const SizedBox(height: 16),
+          Text(
+            '📘 Categorized Topics',
+            style: TextStyle(
+              fontSize: w * 0.04,
+              color: AppTheme.textSoft,
+            ),
+          ),
+          SizedBox(height: w * 0.04),
           ...StudentData.modules.map(
             (module) => Padding(
-              padding: const EdgeInsets.only(bottom: 18),
+              padding: EdgeInsets.only(bottom: w * 0.04),
               child: appCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(module.title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
-                    const SizedBox(height: 10),
-                    Text(module.description, style: const TextStyle(fontSize: 18, color: Colors.white70, height: 1.35)),
-                    const SizedBox(height: 10),
-                    Text(module.category, style: const TextStyle(fontSize: 16, color: AppTheme.accent2)),
-                    const SizedBox(height: 18),
+                    Text(
+                      module.title,
+                      style: TextStyle(
+                        fontSize: w * 0.055,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        height: 1.2,
+                      ),
+                    ),
+                    SizedBox(height: w * 0.025),
+                    Text(
+                      module.description,
+                      style: TextStyle(
+                        fontSize: w * 0.04,
+                        color: Colors.white70,
+                        height: 1.35,
+                      ),
+                    ),
+                    SizedBox(height: w * 0.025),
+                    Text(
+                      module.category,
+                      style: TextStyle(
+                        fontSize: w * 0.038,
+                        color: AppTheme.accent2,
+                      ),
+                    ),
+                    SizedBox(height: w * 0.04),
                     SizedBox(
                       width: double.infinity,
-                      height: 54,
+                      height: w * 0.12,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(18),
-                          gradient: const LinearGradient(colors: [Color(0xFF8A63FF), Color(0xFFA77BFF)]),
+                          borderRadius: BorderRadius.circular(14),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF8A63FF), Color(0xFFA77BFF)],
+                          ),
                         ),
                         child: ElevatedButton(
                           onPressed: () {},
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent),
-                          child: const Text('Open', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: Text(
+                            'Open',
+                            style: TextStyle(
+                              fontSize: w * 0.045,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
                     ),

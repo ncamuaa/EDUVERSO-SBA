@@ -11,48 +11,67 @@ class AnnouncementsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final item = StudentData.announcements.first;
+    final size = MediaQuery.of(context).size;
+    final w = size.width;
+
+    final pagePadding = w * 0.04;
+    final titleFont = w * 0.05; // around 18 on 360px width
+    final bodyFont = w * 0.036; // around 13 on 360px width
+    final dateFont = w * 0.032;
+    final buttonFont = w * 0.035;
 
     return StudentPageBase(
       title: 'Announcements',
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
+        padding: EdgeInsets.fromLTRB(pagePadding, 12, pagePadding, 18),
         children: [
           appCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(
-                      child: tag(item.tag, const Color(0xFF226BFF)),
+                    Expanded(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          tag(item.tag, const Color(0xFF226BFF)),
+                          tag(item.badge, AppTheme.accent2),
+                        ],
+                      ),
                     ),
-                    const Spacer(),
-                    tag(item.badge, AppTheme.accent2),
                     const SizedBox(width: 8),
-                    Text(
-                      item.date,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w500,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        item.date,
+                        style: TextStyle(
+                          fontSize: dateFont,
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: w * 0.03),
                 Text(
                   item.title,
-                  style: const TextStyle(
-                    fontSize: 20,
+                  style: TextStyle(
+                    fontSize: titleFont,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
+                    height: 1.2,
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: w * 0.03),
                 Text(
                   item.body,
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style: TextStyle(
+                    fontSize: bodyFont,
                     height: 1.45,
                     color: Colors.white70,
                   ),
@@ -60,15 +79,15 @@ class AnnouncementsPage extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 22),
+          SizedBox(height: w * 0.05),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _navBtn('◀ Prev'),
-              const SizedBox(width: 10),
-              _navBtn('1', small: true),
-              const SizedBox(width: 10),
-              _navBtn('Next ▶'),
+              _navBtn('◀ Prev', width: w * 0.22, height: w * 0.11, fontSize: buttonFont),
+              SizedBox(width: w * 0.025),
+              _navBtn('1', width: w * 0.11, height: w * 0.11, fontSize: buttonFont),
+              SizedBox(width: w * 0.025),
+              _navBtn('Next ▶', width: w * 0.22, height: w * 0.11, fontSize: buttonFont),
             ],
           ),
         ],
@@ -76,19 +95,24 @@ class AnnouncementsPage extends StatelessWidget {
     );
   }
 
-  Widget _navBtn(String label, {bool small = false}) {
+  Widget _navBtn(
+    String label, {
+    required double width,
+    required double height,
+    required double fontSize,
+  }) {
     return Container(
-      width: small ? 42 : 90,
-      height: 42,
+      width: width,
+      height: height,
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(.12),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
       ),
       alignment: Alignment.center,
       child: Text(
         label,
-        style: const TextStyle(
-          fontSize: 14,
+        style: TextStyle(
+          fontSize: fontSize,
           fontWeight: FontWeight.w700,
           color: Colors.white,
         ),
