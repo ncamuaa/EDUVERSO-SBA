@@ -23,6 +23,7 @@ class ModulesPage extends StatelessWidget {
             style: TextStyle(
               fontSize: w * 0.038,
               color: AppTheme.textSoft,
+              decoration: TextDecoration.none, // ← added
             ),
           ),
           SizedBox(height: w * 0.04),
@@ -40,6 +41,7 @@ class ModulesPage extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
                         height: 1.2,
+                        decoration: TextDecoration.none, // ← added
                       ),
                     ),
                     SizedBox(height: w * 0.025),
@@ -49,6 +51,7 @@ class ModulesPage extends StatelessWidget {
                         fontSize: w * 0.038,
                         color: Colors.white70,
                         height: 1.35,
+                        decoration: TextDecoration.none, // ← added
                       ),
                     ),
                     SizedBox(height: w * 0.025),
@@ -57,6 +60,7 @@ class ModulesPage extends StatelessWidget {
                       style: TextStyle(
                         fontSize: w * 0.036,
                         color: AppTheme.accent2,
+                        decoration: TextDecoration.none, // ← added
                       ),
                     ),
                     SizedBox(height: w * 0.04),
@@ -85,6 +89,7 @@ class ModulesPage extends StatelessWidget {
                               fontSize: w * 0.04,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
+                              decoration: TextDecoration.none, // ← added
                             ),
                           ),
                         ),

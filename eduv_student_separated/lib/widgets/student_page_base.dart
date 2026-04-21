@@ -11,32 +11,35 @@ class StudentPageBase extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppShell(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 4),
-            child: Row(
-              children: [
-                if (showBack)
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Text('← Back', style: TextStyle(fontSize: 22, color: Colors.white)),
-                  )
-                else
-                  const SizedBox(width: 76),
-                Expanded(
-                  child: Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white),
+      child: DefaultTextStyle(
+        style: const TextStyle(decoration: TextDecoration.none),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 4),
+              child: Row(
+                children: [
+                  if (showBack)
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: const Text('← Back', style: TextStyle(fontSize: 22, color: Colors.white, decoration: TextDecoration.none)),
+                    )
+                  else
+                    const SizedBox(width: 76),
+                  Expanded(
+                    child: Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white, decoration: TextDecoration.none),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 76),
-              ],
+                  const SizedBox(width: 76),
+                ],
+              ),
             ),
-          ),
-          Expanded(child: child),
-        ],
+            Expanded(child: child),
+          ],
+        ),
       ),
     );
   }

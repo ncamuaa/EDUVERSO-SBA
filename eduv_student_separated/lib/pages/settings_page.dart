@@ -27,25 +27,42 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final w = AppSize.w(context); // ✅ FIXED
+    final w = AppSize.w(context);
 
     return StudentPageBase(
       title: 'Settings',
       child: ListView(
         padding: EdgeInsets.fromLTRB(w * 0.045, 10, w * 0.045, 16),
         children: [
-          _switchCard('Notifications', 'Enable reminders', notifications,
-              (v) => setState(() => notifications = v), w),
           _switchCard(
-              'Sound', 'UI click sounds', sound, (v) => setState(() => sound = v), w),
-          _switchCard('Reduced Motion', 'Less animations', reducedMotion,
-              (v) => setState(() => reducedMotion = v), w),
-          _switchCard('Dark Mode', 'Switch theme', darkMode,
-              (v) => setState(() => darkMode = v), w),
-
+            'Notifications',
+            'Enable reminders',
+            notifications,
+            (v) => setState(() => notifications = v),
+            w,
+          ),
+          _switchCard(
+            'Sound',
+            'UI click sounds',
+            sound,
+            (v) => setState(() => sound = v),
+            w,
+          ),
+          _switchCard(
+            'Reduced Motion',
+            'Less animations',
+            reducedMotion,
+            (v) => setState(() => reducedMotion = v),
+            w,
+          ),
+          _switchCard(
+            'Dark Mode',
+            'Switch theme',
+            darkMode,
+            (v) => setState(() => darkMode = v),
+            w,
+          ),
           SizedBox(height: w * 0.03),
-
-          /// ACCENT COLORS
           appCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,10 +102,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ),
           ),
-
           SizedBox(height: w * 0.03),
-
-          /// CHANGE EMAIL
           appCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,10 +205,13 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
               ),
             ),
-            Switch(
-              value: value,
-              onChanged: onChanged,
-              activeColor: const Color(0xFFD8C3FF),
+            Material(
+              color: Colors.transparent,
+              child: Switch(
+                value: value,
+                onChanged: onChanged,
+                activeColor: const Color(0xFFD8C3FF),
+              ),
             ),
           ],
         ),
