@@ -10,16 +10,19 @@ import 'announcements_page.dart';
 import 'feedback_page.dart';
 import 'game_arena_page.dart';
 import 'modules_page.dart';
+import 'profile_page.dart';
 import 'settings_page.dart';
+
 
 class StudentDashboardPage extends StatelessWidget {
   const StudentDashboardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final w = AppSize.w(context); // ✅ FIXED
+    final w = AppSize.w(context);
 
     return AppShell(
+      showDrawer: true,
       child: Builder(
         builder: (context) => SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(w * 0.045, 14, w * 0.045, 24),
@@ -35,17 +38,39 @@ class StudentDashboardPage extends StatelessWidget {
                       backgroundColor: Colors.white.withOpacity(.08),
                       minimumSize: Size(w * 0.13, w * 0.13),
                     ),
-                    icon: Icon(Icons.menu_rounded,
-                        color: Colors.white, size: w * 0.06),
+                    icon: Icon(
+                      Icons.menu_rounded,
+                      color: Colors.white,
+                      size: w * 0.06,
+                    ),
                   ),
                   const Spacer(),
                   const LogoText(),
                   const Spacer(),
-                  CircleAvatar(
-                    radius: w * 0.06,
-                    backgroundColor: Colors.white24,
-                    child: Icon(Icons.person,
-                        color: Colors.white, size: w * 0.05),
+
+                  /// PROFILE BUTTON
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ProfilePage(),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(999),
+                      child: CircleAvatar(
+                        radius: w * 0.06,
+                        backgroundColor: Colors.white24,
+                        child: Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: w * 0.05,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -55,7 +80,10 @@ class StudentDashboardPage extends StatelessWidget {
               /// WELCOME TEXT
               Text(
                 'Welcome,',
-                style: TextStyle(fontSize: w * 0.055, color: Colors.white70),
+                style: TextStyle(
+                  fontSize: w * 0.055,
+                  color: Colors.white70,
+                ),
               ),
               Text(
                 StudentData.name,
@@ -65,7 +93,7 @@ class StudentDashboardPage extends StatelessWidget {
                   color: Colors.white,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 'Shape your future, one lesson at a time.',
                 style: TextStyle(
@@ -133,7 +161,7 @@ class StudentDashboardPage extends StatelessWidget {
                           color: Colors.white,
                         ),
                       ),
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -214,7 +242,7 @@ class StudentDashboardPage extends StatelessWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: w * 0.04,
                 mainAxisSpacing: w * 0.04,
-                childAspectRatio: 2.5, // slightly tighter
+                childAspectRatio: 2.5,
                 children: [
                   _homeButton(context, 'Voice Tutor', AppTheme.blue, Icons.mic, const AITutorPage(), w),
                   _homeButton(context, 'Modules', AppTheme.green, Icons.menu_book_rounded, const ModulesPage(), w),
@@ -231,11 +259,21 @@ class StudentDashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _homeButton(BuildContext context, String title, Color color, IconData icon, Widget page, double w) {
+  Widget _homeButton(
+    BuildContext context,
+    String title,
+    Color color,
+    IconData icon,
+    Widget page,
+    double w,
+  ) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => page)),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => page),
+        ),
         borderRadius: BorderRadius.circular(16),
         child: Ink(
           decoration: BoxDecoration(
