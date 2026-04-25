@@ -14,8 +14,3 @@ To integrate AI-based tutoring for enhanced understanding
 To centralize academic modules, feedback, and announcements
 To allow administrators to manage all system content efficiently
 
-📂 Project Structure
-EDUVERSO-SBA/│
-├── eduv_backend_mysql/      # Node.js backend (API)
-├── eduv_student_separated/  # Flutter mobile app
-├── README.md
