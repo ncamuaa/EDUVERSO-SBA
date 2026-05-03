@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/student_data.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_size.dart';
 import '../widgets/common_widgets.dart';
@@ -12,183 +13,205 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final w = AppSize.w(context); // ✅ FIXED
+    final w = AppSize.w(context);
 
-    return StudentPageBase(
-      title: 'Profile',
-      child: ListView(
-        padding: EdgeInsets.fromLTRB(w * 0.045, 12, w * 0.045, 18),
-        children: [
-          /// PROFILE IMAGE
-          appCard(
-            child: Column(
-              children: [
-                SizedBox(height: w * 0.03),
-                Container(
-                  width: w * 0.42, // slightly smaller
-                  height: w * 0.42,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    color: Colors.white.withOpacity(.08),
-                    border: Border.all(color: Colors.white24, width: 2),
-                  ),
-                  child: Icon(
-                    Icons.person,
-                    size: w * 0.2,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: w * 0.04),
-                SizedBox(
-                  width: w * 0.45,
-                  height: w * 0.11,
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white24,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+    return FutureBuilder<Map<String, dynamic>>(
+      future: AuthService.getProfile(),
+      builder: (context, snapshot) {
+        final user = snapshot.data?['user'];
+
+        final name = user?['fullName'] ?? StudentData.name;
+        final email = user?['email'] ?? StudentData.email;
+
+        return StudentPageBase(
+          title: 'Profile',
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(w * 0.045, 12, w * 0.045, 18),
+            children: [
+              /// PROFILE IMAGE
+              appCard(
+                child: Column(
+                  children: [
+                    SizedBox(height: w * 0.03),
+                    Container(
+                      width: w * 0.42,
+                      height: w * 0.42,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        color: Colors.white.withOpacity(.08),
+                        border: Border.all(color: Colors.white24, width: 2),
                       ),
-                    ),
-                    child: Text(
-                      'Choose Image',
-                      style: TextStyle(
-                        fontSize: w * 0.038,
-                        fontWeight: FontWeight.w700,
+                      child: Icon(
+                        Icons.person,
+                        size: w * 0.2,
                         color: Colors.white,
                       ),
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          SizedBox(height: w * 0.04),
-
-          /// USER INFO
-          appCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  StudentData.name,
-                  style: TextStyle(
-                    fontSize: w * 0.055,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: w * 0.02),
-                Text(
-                  'Email: ${StudentData.email}',
-                  style: TextStyle(
-                    fontSize: w * 0.038,
-                    color: AppTheme.textSoft,
-                  ),
-                ),
-                SizedBox(height: w * 0.015),
-                Text(
-                  'Section: BSIT 3A',
-                  style: TextStyle(
-                    fontSize: w * 0.035,
-                    color: AppTheme.textSoft,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          SizedBox(height: w * 0.04),
-
-          /// ACHIEVEMENTS + STATS
-          Row(
-            children: [
-              Expanded(
-                child: appCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '🏆 Achievements',
-                        style: TextStyle(
-                          fontSize: w * 0.04,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
+                    SizedBox(height: w * 0.04),
+                    SizedBox(
+                      width: w * 0.45,
+                      height: w * 0.11,
+                      child: ElevatedButton(
+                        onPressed: () {},
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white24,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Choose Image',
+                          style: TextStyle(
+                            fontSize: w * 0.038,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
-                      SizedBox(height: w * 0.03),
-                      Text(
-                        'Level: 1',
-                        style: TextStyle(fontSize: w * 0.038, color: Colors.white),
-                      ),
-                      Text(
-                        'Streak: 0 days',
-                        style: TextStyle(fontSize: w * 0.038, color: Colors.white),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              SizedBox(width: w * 0.03),
-              Expanded(
-                child: appCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '📊 Stats',
-                        style: TextStyle(
-                          fontSize: w * 0.04,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
+
+              SizedBox(height: w * 0.04),
+
+              /// USER INFO
+              appCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: TextStyle(
+                        fontSize: w * 0.055,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
                       ),
-                      SizedBox(height: w * 0.03),
-                      Text(
-                        'XP: 60',
-                        style: TextStyle(fontSize: w * 0.038, color: Colors.white),
+                    ),
+                    SizedBox(height: w * 0.02),
+                    Text(
+                      'Email: $email',
+                      style: TextStyle(
+                        fontSize: w * 0.038,
+                        color: AppTheme.textSoft,
                       ),
-                      Text(
-                        'Course: BSIT',
-                        style: TextStyle(fontSize: w * 0.038, color: Colors.white),
+                    ),
+                    SizedBox(height: w * 0.015),
+                    Text(
+                      'Section: BSIT 3A',
+                      style: TextStyle(
+                        fontSize: w * 0.035,
+                        color: AppTheme.textSoft,
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: w * 0.04),
+
+              /// ACHIEVEMENTS + STATS
+              Row(
+                children: [
+                  Expanded(
+                    child: appCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '🏆 Achievements',
+                            style: TextStyle(
+                              fontSize: w * 0.04,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(height: w * 0.03),
+                          Text(
+                            'Level: 1',
+                            style: TextStyle(
+                              fontSize: w * 0.038,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            'Streak: 0 days',
+                            style: TextStyle(
+                              fontSize: w * 0.038,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: w * 0.03),
+                  Expanded(
+                    child: appCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '📊 Stats',
+                            style: TextStyle(
+                              fontSize: w * 0.04,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(height: w * 0.03),
+                          Text(
+                            'XP: 60',
+                            style: TextStyle(
+                              fontSize: w * 0.038,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            'Course: BSIT',
+                            style: TextStyle(
+                              fontSize: w * 0.038,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              SizedBox(height: w * 0.05),
+
+              /// LOGOUT BUTTON
+              SizedBox(
+                height: w * 0.12,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                    (_) => false,
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.red,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: Text(
+                    'Logout',
+                    style: TextStyle(
+                      fontSize: w * 0.04,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-
-          SizedBox(height: w * 0.05),
-
-          /// LOGOUT BUTTON
-          SizedBox(
-            height: w * 0.12,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginPage()),
-                (_) => false,
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.red,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: Text(
-                'Logout',
-                style: TextStyle(
-                  fontSize: w * 0.04,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

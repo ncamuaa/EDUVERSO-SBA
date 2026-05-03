@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/student_data.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_size.dart';
 import '../widgets/app_shell.dart';
@@ -12,7 +13,6 @@ import 'game_arena_page.dart';
 import 'modules_page.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
-
 
 class StudentDashboardPage extends StatelessWidget {
   const StudentDashboardPage({super.key});
@@ -85,14 +85,24 @@ class StudentDashboardPage extends StatelessWidget {
                   color: Colors.white70,
                 ),
               ),
-              Text(
-                StudentData.name,
-                style: TextStyle(
-                  fontSize: w * 0.07,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
+
+              FutureBuilder<Map<String, dynamic>>(
+                future: AuthService.getProfile(),
+                builder: (context, snapshot) {
+                  final user = snapshot.data?['user'];
+                  final name = user?['fullName'] ?? StudentData.name;
+
+                  return Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: w * 0.07,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  );
+                },
               ),
+
               const SizedBox(height: 4),
               Text(
                 'Shape your future, one lesson at a time.',
@@ -244,12 +254,28 @@ class StudentDashboardPage extends StatelessWidget {
                 mainAxisSpacing: w * 0.04,
                 childAspectRatio: 2.5,
                 children: [
-                  _homeButton(context, 'Voice Tutor', AppTheme.blue, Icons.mic, const AITutorPage(), w),
-                  _homeButton(context, 'Modules', AppTheme.green, Icons.menu_book_rounded, const ModulesPage(), w),
-                  _homeButton(context, 'Peer Feedback', const Color(0xFFFF5F98), Icons.forum_outlined, const PeerFeedbackPage(), w),
-                  _homeButton(context, 'Game Arena', AppTheme.yellow, Icons.psychology_alt, const GameArenaPage(), w),
-                  _homeButton(context, 'Announcement', const Color(0xFF4AA0FF), Icons.campaign_outlined, const AnnouncementsPage(), w),
-                  _homeButton(context, 'Settings', const Color(0xFFA175FF), Icons.settings, const SettingsPage(), w),
+                  _homeButton(context, 'Voice Tutor', AppTheme.blue, Icons.mic,
+                      const AITutorPage(), w),
+                  _homeButton(context, 'Modules', AppTheme.green,
+                      Icons.menu_book_rounded, const ModulesPage(), w),
+                  _homeButton(
+                      context,
+                      'Peer Feedback',
+                      const Color(0xFFFF5F98),
+                      Icons.forum_outlined,
+                      const PeerFeedbackPage(),
+                      w),
+                  _homeButton(context, 'Game Arena', AppTheme.yellow,
+                      Icons.psychology_alt, const GameArenaPage(), w),
+                  _homeButton(
+                      context,
+                      'Announcement',
+                      const Color(0xFF4AA0FF),
+                      Icons.campaign_outlined,
+                      const AnnouncementsPage(),
+                      w),
+                  _homeButton(context, 'Settings', const Color(0xFFA175FF),
+                      Icons.settings, const SettingsPage(), w),
                 ],
               ),
             ],

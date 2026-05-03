@@ -45,7 +45,7 @@ class _RegisterPageState extends State<RegisterPage> {
         Uri.parse('$baseUrl/api/auth/register'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          "name": nameController.text,
+          "fullName": nameController.text,
           "email": emailController.text,
           "password": passwordController.text,
         }),
