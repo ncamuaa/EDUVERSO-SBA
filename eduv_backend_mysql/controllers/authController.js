@@ -27,25 +27,6 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password must be at least 6 characters long.',
-      });
-    }
-
-    const [existingUsers] = await pool.execute(
-      'SELECT id FROM users WHERE email = ? LIMIT 1',
-      [email]
-    );
-
-    if (existingUsers.length > 0) {
-      return res.status(409).json({
-        success: false,
-        message: 'Email is already registered.',
-      });
-    }
-
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const [result] = await pool.execute(
@@ -60,12 +41,10 @@ exports.register = async (req, res, next) => {
       email,
     };
 
-    const token = generateToken(user);
-
     return res.status(201).json({
       success: true,
       message: 'User registered successfully.',
-      token,
+      token: generateToken(user),
       user: {
         id: user.id,
         fullName: user.full_name,
@@ -80,13 +59,6 @@ exports.register = async (req, res, next) => {
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email and password are required.',
-      });
-    }
 
     const [users] = await pool.execute(
       `SELECT id, full_name, email, password
@@ -113,12 +85,10 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    const token = generateToken(user);
-
     return res.status(200).json({
       success: true,
       message: 'Login successful.',
-      token,
+      token: generateToken(user),
       user: {
         id: user.id,
         fullName: user.full_name,
