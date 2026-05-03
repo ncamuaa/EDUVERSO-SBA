@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ ADD THIS
 
 import '../config/api.dart';
 import '../utils/app_size.dart';
@@ -49,6 +50,10 @@ class _LoginPageState extends State<LoginPage> {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['success'] == true) {
+        // ✅ SAVE TOKEN HERE (VERY IMPORTANT)
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', data['token']);
+
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/dashboard');
       } else {
@@ -69,7 +74,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final w = AppSize.w(context); // ✅ FIXED
+    final w = AppSize.w(context);
 
     return Scaffold(
       body: Container(
@@ -90,7 +95,7 @@ class _LoginPageState extends State<LoginPage> {
                 vertical: 20,
               ),
               child: Container(
-                width: w, // ✅ IMPORTANT: prevents wide stretching
+                width: w,
                 padding: EdgeInsets.symmetric(
                   horizontal: w * 0.06,
                   vertical: w * 0.08,
@@ -181,31 +186,6 @@ class _LoginPageState extends State<LoginPage> {
                         style: TextStyle(
                           color: Colors.white70,
                           fontSize: w * 0.035,
-                        ),
-                      ),
-                    ),
-
-                    SizedBox(height: w * 0.03),
-
-                    Text(
-                      'Or continue with',
-                      style: TextStyle(
-                        fontSize: w * 0.038,
-                        color: Colors.white,
-                      ),
-                    ),
-
-                    SizedBox(height: w * 0.04),
-
-                    CircleAvatar(
-                      radius: w * 0.055,
-                      backgroundColor: Colors.white,
-                      child: Text(
-                        'G',
-                        style: TextStyle(
-                          fontSize: w * 0.05,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
                         ),
                       ),
                     ),
