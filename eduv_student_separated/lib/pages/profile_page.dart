@@ -184,30 +184,36 @@ class ProfilePage extends StatelessWidget {
               SizedBox(height: w * 0.05),
 
               /// LOGOUT BUTTON
-              SizedBox(
-                height: w * 0.12,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginPage()),
-                    (_) => false,
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.red,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: Text(
-                    'Logout',
-                    style: TextStyle(
-                      fontSize: w * 0.04,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
+SizedBox(
+  height: w * 0.12,
+  child: ElevatedButton(
+    onPressed: () async {
+      await AuthService.logout();
+
+      if (!context.mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (_) => false,
+      );
+    },
+    style: ElevatedButton.styleFrom(
+      backgroundColor: AppTheme.red,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+    ),
+    child: Text(
+      'Logout',
+      style: TextStyle(
+        fontSize: w * 0.04,
+        fontWeight: FontWeight.w800,
+        color: Colors.white,
+      ),
+    ),
+  ),
+),
             ],
           ),
         );
