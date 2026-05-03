@@ -52,7 +52,8 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200 && data['success'] == true) {
         // ✅ SAVE TOKEN HERE (VERY IMPORTANT)
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('token', data['token']);
+await prefs.clear(); // 🔥 clear old user
+await prefs.setString('token', data['token']);
 
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/dashboard');
