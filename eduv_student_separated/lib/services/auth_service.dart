@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  static const String baseUrl = 'http://localhost:5001/api/auth';
+  static const String baseUrl = 'https://eduverso-sba-production.up.railway.app';
 
   static Future<Map<String, dynamic>> login({
     required String email,
