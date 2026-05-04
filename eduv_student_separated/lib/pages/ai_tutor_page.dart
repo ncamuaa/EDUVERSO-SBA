@@ -361,20 +361,20 @@ class _AITutorPageState extends State<AITutorPage> {
 
     try {
       final apiMessages = _messages
-          .where((m) => m['type'] != 'image')
-          .where((m) => !(m['role'] == 'assistant' && _messages.indexOf(m) == 0))
-          .map(
-            (m) => {
-              'role': m['role'] as String,
-              'content': m['content'] as String,
-            },
-          )
-          .toList();
+    .where((m) => m['type'] != 'image')
+    .where((m) => m['role'] == 'user')
+    .map(
+      (m) => {
+        'role': 'user',
+        'content': m['content'] as String,
+      },
+    )
+    .toList();
 
-      final reply = await AiTutorService.chat(
-        messages: apiMessages,
-        mode: _labels[_selectedMode],
-      );
+final reply = await AiTutorService.chat(
+  messages: apiMessages,
+  mode: _labels[_selectedMode],
+);flutter run -d chrome
 
       if (mounted) {
         setState(() {
