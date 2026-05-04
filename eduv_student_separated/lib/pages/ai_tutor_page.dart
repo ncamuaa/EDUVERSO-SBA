@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:speech_to_text/speech_to_text.dart';
+import 'package:file_picker/file_picker.dart';
 import '../services/ai_tutor_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
@@ -16,10 +19,13 @@ class AITutorPage extends StatefulWidget {
 class _AITutorPageState extends State<AITutorPage> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final SpeechToText _speech = SpeechToText();
 
   int _selectedMode = 0;
   final List<String> _labels = ['Study', 'Explain', 'Exam', 'Quiz'];
   bool _isLoading = false;
+  bool _isListening = false;
+  bool _speechAvailable = false;
 
   int _xp = 0;
   int _level = 1;
@@ -32,6 +38,7 @@ class _AITutorPageState extends State<AITutorPage> {
     super.initState();
     _loadUserStats();
     _addGreeting();
+    _initSpeech();
   }
 
   @override
@@ -50,6 +57,11 @@ class _AITutorPageState extends State<AITutorPage> {
         _progress = (cached['progress'] ?? 0.0).toDouble();
       });
     }
+  }
+
+  void _initSpeech() async {
+    _speechAvailable = await _speech.initialize();
+    setState(() {});
   }
 
   void _addGreeting() {
@@ -75,11 +87,79 @@ class _AITutorPageState extends State<AITutorPage> {
     _addGreeting();
   }
 
+  // ✅ MIC — start/stop listening
+  void _toggleListening() async {
+    if (!_speechAvailable) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Microphone not available')),
+      );
+      return;
+    }
+
+    if (_isListening) {
+      await _speech.stop();
+      setState(() => _isListening = false);
+    } else {
+      setState(() => _isListening = true);
+      await _speech.listen(
+        onResult: (result) {
+          setState(() {
+            _controller.text = result.recognizedWords;
+          });
+        },
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 3),
+        localeId: 'en_US',
+      );
+    }
+  }
+
+  // ✅ ATTACH FILE — pick and send to AI
+  void _attachFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'txt', 'doc', 'docx'],
+      withData: true,
+    );
+
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.first;
+    final fileName = file.name;
+    final bytes = file.bytes;
+
+    if (bytes == null) return;
+
+    // Convert file to text (for txt files)
+    String fileContent = '';
+    if (fileName.endsWith('.txt')) {
+      fileContent = String.fromCharCodes(bytes);
+    } else {
+      fileContent = '[File attached: $fileName — ${(bytes.length / 1024).toStringAsFixed(1)} KB]';
+    }
+
+    // Add as user message
+    final message = 'I\'ve attached a file called "$fileName". Please help me with it:\n\n$fileContent';
+    
+    setState(() {
+      _controller.text = message;
+    });
+
+    // Auto send
+    _sendMessage();
+  }
+
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _isLoading) return;
 
     _controller.clear();
+
+    // Stop listening if mic was on
+    if (_isListening) {
+      await _speech.stop();
+      setState(() => _isListening = false);
+    }
 
     setState(() {
       _messages.add({'role': 'user', 'content': text});
@@ -89,7 +169,6 @@ class _AITutorPageState extends State<AITutorPage> {
     _scrollToBottom();
 
     try {
-      // Skip greeting message from API call
       final apiMessages = _messages
           .where((m) => !(m['role'] == 'assistant' && _messages.indexOf(m) == 0))
           .toList();
@@ -295,11 +374,33 @@ class _AITutorPageState extends State<AITutorPage> {
                                     color: Colors.white.withOpacity(.12),
                                     borderRadius: BorderRadius.circular(14),
                                   ),
-                                  child: Text(
-                                    msg['content'] ?? '',
-                                    style: TextStyle(
-                                      fontSize: w * 0.04,
-                                      color: Colors.white,
+                                  // ✅ MARKDOWN RENDERING
+                                  child: MarkdownBody(
+                                    data: msg['content'] ?? '',
+                                    styleSheet: MarkdownStyleSheet(
+                                      p: TextStyle(
+                                        fontSize: w * 0.04,
+                                        color: Colors.white,
+                                      ),
+                                      strong: TextStyle(
+                                        fontSize: w * 0.04,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                      em: TextStyle(
+                                        fontSize: w * 0.04,
+                                        color: Colors.white,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                      listBullet: TextStyle(
+                                        fontSize: w * 0.04,
+                                        color: Colors.white,
+                                      ),
+                                      code: TextStyle(
+                                        fontSize: w * 0.035,
+                                        color: const Color(0xFF74EEFF),
+                                        backgroundColor: Colors.black26,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -368,8 +469,13 @@ class _AITutorPageState extends State<AITutorPage> {
             padding: EdgeInsets.fromLTRB(w * 0.045, 10, w * 0.045, 14),
             child: Row(
               children: [
-                _circleAction(Icons.attach_file, w),
+                // ✅ ATTACH FILE BUTTON
+                GestureDetector(
+                  onTap: _attachFile,
+                  child: _circleAction(Icons.attach_file, w),
+                ),
                 const SizedBox(width: 8),
+
                 Expanded(
                   child: Container(
                     height: w * 0.13,
@@ -386,15 +492,22 @@ class _AITutorPageState extends State<AITutorPage> {
                         fontSize: w * 0.04,
                       ),
                       onSubmitted: (_) => _sendMessage(),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         border: InputBorder.none,
-                        hintText: 'Speak or type...',
-                        hintStyle: TextStyle(color: Colors.white70),
+                        hintText: _isListening
+                            ? 'Listening...'
+                            : 'Speak or type...',
+                        hintStyle: TextStyle(
+                          color: _isListening
+                              ? const Color(0xFF74EEFF)
+                              : Colors.white70,
+                        ),
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
+
                 SizedBox(
                   width: w * 0.2,
                   height: w * 0.13,
@@ -420,7 +533,26 @@ class _AITutorPageState extends State<AITutorPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _circleAction(Icons.mic, w),
+
+                // ✅ MIC BUTTON
+                GestureDetector(
+                  onTap: _toggleListening,
+                  child: Container(
+                    width: w * 0.12,
+                    height: w * 0.12,
+                    decoration: BoxDecoration(
+                      color: _isListening
+                          ? const Color(0xFF74EEFF)
+                          : Colors.white.withOpacity(.12),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(
+                      _isListening ? Icons.mic : Icons.mic_none,
+                      color: _isListening ? Colors.black87 : Colors.white,
+                      size: w * 0.06,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

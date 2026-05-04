@@ -11,6 +11,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   http: ^1.6.0
   shared_preferences: ^2.2.3
+  flutter_markdown: ^0.7.3  # ✅ renders AI markdown responses
+  speech_to_text: ^6.6.2    # ✅ mic / speech to text
+  file_picker: ^8.1.2       # ✅ attach files
 
 dev_dependencies:
   flutter_test:
