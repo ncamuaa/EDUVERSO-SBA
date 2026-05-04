@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:file_picker/file_picker.dart';
+
 import '../services/ai_tutor_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
@@ -24,6 +27,7 @@ class _AITutorPageState extends State<AITutorPage> {
 
   int _selectedMode = 0;
   final List<String> _labels = ['Study', 'Explain', 'Exam', 'Quiz'];
+
   bool _isLoading = false;
   bool _isListening = false;
   bool _speechAvailable = false;
@@ -46,11 +50,13 @@ class _AITutorPageState extends State<AITutorPage> {
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
+    _speech.stop();
     super.dispose();
   }
 
-  void _loadUserStats() async {
+  Future<void> _loadUserStats() async {
     final cached = await AuthService.getCachedUser();
+
     if (cached != null && mounted) {
       setState(() {
         _xp = (cached['xpInLevel'] ?? 0) as int;
@@ -60,13 +66,17 @@ class _AITutorPageState extends State<AITutorPage> {
     }
   }
 
-  void _initSpeech() async {
+  Future<void> _initSpeech() async {
     _speechAvailable = await _speech.initialize();
-    setState(() {});
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _addGreeting() {
     final mode = _labels[_selectedMode];
+
     final greetings = {
       'Study': 'Hi Student! Ready to learn? Ask me anything! 📚',
       'Explain': 'Hi! Give me any concept and I\'ll explain it simply! 💡',
@@ -89,8 +99,7 @@ class _AITutorPageState extends State<AITutorPage> {
     _addGreeting();
   }
 
-  // ✅ MIC — start/stop listening
-  void _toggleListening() async {
+  Future<void> _toggleListening() async {
     if (!_speechAvailable) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Microphone not available')),
@@ -100,9 +109,13 @@ class _AITutorPageState extends State<AITutorPage> {
 
     if (_isListening) {
       await _speech.stop();
-      setState(() => _isListening = false);
+
+      if (mounted) {
+        setState(() => _isListening = false);
+      }
     } else {
       setState(() => _isListening = true);
+
       await _speech.listen(
         onResult: (result) {
           setState(() {
@@ -116,8 +129,7 @@ class _AITutorPageState extends State<AITutorPage> {
     }
   }
 
-  // ✅ ATTACH FILE — pick and send to AI (supports images too)
-  void _attachFile() async {
+  Future<void> _attachFile() async {
     final choice = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: const Color(0xFF1E1B2E),
@@ -130,8 +142,8 @@ class _AITutorPageState extends State<AITutorPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
               child: Text(
                 'Attach',
                 style: TextStyle(
@@ -150,10 +162,26 @@ class _AITutorPageState extends State<AITutorPage> {
                   color: Colors.white.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.insert_drive_file, color: Colors.white, size: 22),
+                child: const Icon(
+                  Icons.insert_drive_file,
+                  color: Colors.white,
+                  size: 22,
+                ),
               ),
-              title: const Text('Document', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-              subtitle: const Text('PDF, TXT, DOC, DOCX', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              title: const Text(
+                'Document',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: const Text(
+                'PDF, TXT, DOC, DOCX',
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                ),
+              ),
               onTap: () => Navigator.pop(context, 'file'),
             ),
             const SizedBox(height: 4),
@@ -166,10 +194,26 @@ class _AITutorPageState extends State<AITutorPage> {
                   color: const Color(0xFF74EEFF).withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.image, color: Color(0xFF74EEFF), size: 22),
+                child: const Icon(
+                  Icons.image,
+                  color: Color(0xFF74EEFF),
+                  size: 22,
+                ),
               ),
-              title: const Text('Image', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-              subtitle: const Text('JPG, PNG, GIF, WEBP', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              title: const Text(
+                'Image',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: const Text(
+                'JPG, PNG, GIF, WEBP',
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                ),
+              ),
               onTap: () => Navigator.pop(context, 'image'),
             ),
             const SizedBox(height: 8),
@@ -192,10 +236,12 @@ class _AITutorPageState extends State<AITutorPage> {
       final file = result.files.first;
       final fileName = file.name;
       final bytes = file.bytes;
+
       if (bytes == null) return;
 
       String fileContent = '';
-      if (fileName.endsWith('.txt')) {
+
+      if (fileName.toLowerCase().endsWith('.txt')) {
         fileContent = String.fromCharCodes(bytes);
       } else {
         fileContent =
@@ -203,9 +249,13 @@ class _AITutorPageState extends State<AITutorPage> {
       }
 
       final message =
-          'I\'ve attached a file called "$fileName". Please help me with it:\n\n$fileContent';
-      setState(() => _controller.text = message);
-      _sendMessage();
+          'I attached a file called "$fileName". Please help me with it:\n\n$fileContent';
+
+      setState(() {
+        _controller.text = message;
+      });
+
+      await _sendMessage();
     } else if (choice == 'image') {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
@@ -217,15 +267,15 @@ class _AITutorPageState extends State<AITutorPage> {
       final file = result.files.first;
       final fileName = file.name;
       final bytes = file.bytes;
+
       if (bytes == null) return;
 
-      final base64Image = base64Encode(bytes);
-      final mimeType = _getMimeType(fileName);
-
-      // Stop listening if mic was on
       if (_isListening) {
         await _speech.stop();
-        setState(() => _isListening = false);
+
+        if (mounted) {
+          setState(() => _isListening = false);
+        }
       }
 
       setState(() {
@@ -238,14 +288,19 @@ class _AITutorPageState extends State<AITutorPage> {
         });
         _isLoading = true;
       });
+
       _scrollToBottom();
 
       try {
-        final reply = await AiTutorService.chatWithImage(
-          messages: _messages,
+        final reply = await AiTutorService.chat(
+          messages: [
+            {
+              'role': 'user',
+              'content':
+                  'The user attached an image named "$fileName". Image support is currently limited in this version. Please tell the student that the image was received and ask them to type the question or describe what they want help with.',
+            }
+          ],
           mode: _labels[_selectedMode],
-          imageBase64: base64Image,
-          mimeType: mimeType,
         );
 
         if (mounted) {
@@ -257,6 +312,7 @@ class _AITutorPageState extends State<AITutorPage> {
             });
             _isLoading = false;
           });
+
           _scrollToBottom();
         }
       } catch (e) {
@@ -264,48 +320,40 @@ class _AITutorPageState extends State<AITutorPage> {
           setState(() {
             _messages.add({
               'role': 'assistant',
-              'content': 'Sorry, could not process the image. Please try again.',
+              'content':
+                  'I received the image, but image analysis is not available yet. Please type your question or describe the image.',
               'type': 'text',
             });
             _isLoading = false;
           });
+
           _scrollToBottom();
         }
       }
     }
   }
 
-  String _getMimeType(String fileName) {
-    final ext = fileName.split('.').last.toLowerCase();
-    switch (ext) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'gif':
-        return 'image/gif';
-      case 'webp':
-        return 'image/webp';
-      default:
-        return 'image/jpeg';
-    }
-  }
-
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
+
     if (text.isEmpty || _isLoading) return;
 
     _controller.clear();
 
-    // Stop listening if mic was on
     if (_isListening) {
       await _speech.stop();
-      setState(() => _isListening = false);
+
+      if (mounted) {
+        setState(() => _isListening = false);
+      }
     }
 
     setState(() {
-      _messages.add({'role': 'user', 'content': text, 'type': 'text'});
+      _messages.add({
+        'role': 'user',
+        'content': text,
+        'type': 'text',
+      });
       _isLoading = true;
     });
 
@@ -313,8 +361,14 @@ class _AITutorPageState extends State<AITutorPage> {
 
     try {
       final apiMessages = _messages
+          .where((m) => m['type'] != 'image')
           .where((m) => !(m['role'] == 'assistant' && _messages.indexOf(m) == 0))
-          .map((m) => {'role': m['role'] as String, 'content': m['content'] as String})
+          .map(
+            (m) => {
+              'role': m['role'] as String,
+              'content': m['content'] as String,
+            },
+          )
           .toList();
 
       final reply = await AiTutorService.chat(
@@ -324,9 +378,14 @@ class _AITutorPageState extends State<AITutorPage> {
 
       if (mounted) {
         setState(() {
-          _messages.add({'role': 'assistant', 'content': reply, 'type': 'text'});
+          _messages.add({
+            'role': 'assistant',
+            'content': reply,
+            'type': 'text',
+          });
           _isLoading = false;
         });
+
         _scrollToBottom();
       }
     } catch (e) {
@@ -339,6 +398,7 @@ class _AITutorPageState extends State<AITutorPage> {
           });
           _isLoading = false;
         });
+
         _scrollToBottom();
       }
     }
@@ -360,6 +420,7 @@ class _AITutorPageState extends State<AITutorPage> {
     final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
     final minute = time.minute.toString().padLeft(2, '0');
     final period = time.hour >= 12 ? 'PM' : 'AM';
+
     return '$hour:$minute $period';
   }
 
@@ -376,7 +437,6 @@ class _AITutorPageState extends State<AITutorPage> {
               controller: _scrollController,
               padding: EdgeInsets.fromLTRB(w * 0.045, 12, w * 0.045, 12),
               children: [
-                /// XP CARD
                 appCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -405,10 +465,10 @@ class _AITutorPageState extends State<AITutorPage> {
 
                 SizedBox(height: w * 0.03),
 
-                /// MODE TABS
                 Row(
                   children: List.generate(_labels.length, (i) {
                     final active = i == _selectedMode;
+
                     return Expanded(
                       child: Padding(
                         padding: EdgeInsets.only(
@@ -442,9 +502,7 @@ class _AITutorPageState extends State<AITutorPage> {
 
                 SizedBox(height: w * 0.06),
 
-                /// CHAT MESSAGES
-                ..._messages.asMap().entries.map((entry) {
-                  final msg = entry.value;
+                ..._messages.map((msg) {
                   final isUser = msg['role'] == 'user';
                   final isImageMsg = msg['type'] == 'image';
                   final now = DateTime.now();
@@ -469,17 +527,23 @@ class _AITutorPageState extends State<AITutorPage> {
                                     color: const Color(0xFF9074FF),
                                     borderRadius: BorderRadius.circular(14),
                                   ),
-                                  child: isImageMsg && msg['imageBytes'] != null
+                                  child: isImageMsg &&
+                                          msg['imageBytes'] != null
                                       ? Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             ClipRRect(
-                                              borderRadius: BorderRadius.circular(10),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
                                               child: Image.memory(
-                                                msg['imageBytes'] as List<int> is Uint8List
-                                                    ? msg['imageBytes'] as Uint8List
+                                                msg['imageBytes'] is Uint8List
+                                                    ? msg['imageBytes']
+                                                        as Uint8List
                                                     : Uint8List.fromList(
-                                                        msg['imageBytes'] as List<int>),
+                                                        msg['imageBytes']
+                                                            as List<int>,
+                                                      ),
                                                 width: w * 0.55,
                                                 fit: BoxFit.cover,
                                               ),
@@ -516,83 +580,81 @@ class _AITutorPageState extends State<AITutorPage> {
                         ],
                       ),
                     );
-                  } else {
-                    return Padding(
-                      padding: EdgeInsets.only(bottom: w * 0.04),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CircleAvatar(
-                            radius: w * 0.06,
-                            backgroundColor: Colors.white24,
-                            child: Icon(
-                              Icons.smart_toy,
-                              color: Colors.white,
-                              size: w * 0.06,
-                            ),
+                  }
+
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: w * 0.04),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          radius: w * 0.06,
+                          backgroundColor: Colors.white24,
+                          child: Icon(
+                            Icons.smart_toy,
+                            color: Colors.white,
+                            size: w * 0.06,
                           ),
-                          SizedBox(width: w * 0.03),
-                          Flexible(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: w * 0.04,
-                                    vertical: w * 0.03,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(.12),
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  // ✅ MARKDOWN RENDERING
-                                  child: MarkdownBody(
-                                    data: msg['content'] ?? '',
-                                    styleSheet: MarkdownStyleSheet(
-                                      p: TextStyle(
-                                        fontSize: w * 0.04,
-                                        color: Colors.white,
-                                      ),
-                                      strong: TextStyle(
-                                        fontSize: w * 0.04,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                      em: TextStyle(
-                                        fontSize: w * 0.04,
-                                        color: Colors.white,
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                      listBullet: TextStyle(
-                                        fontSize: w * 0.04,
-                                        color: Colors.white,
-                                      ),
-                                      code: TextStyle(
-                                        fontSize: w * 0.035,
-                                        color: const Color(0xFF74EEFF),
-                                        backgroundColor: Colors.black26,
-                                      ),
+                        ),
+                        SizedBox(width: w * 0.03),
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: w * 0.04,
+                                  vertical: w * 0.03,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(.12),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: MarkdownBody(
+                                  data: msg['content'] ?? '',
+                                  styleSheet: MarkdownStyleSheet(
+                                    p: TextStyle(
+                                      fontSize: w * 0.04,
+                                      color: Colors.white,
+                                    ),
+                                    strong: TextStyle(
+                                      fontSize: w * 0.04,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                    em: TextStyle(
+                                      fontSize: w * 0.04,
+                                      color: Colors.white,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                    listBullet: TextStyle(
+                                      fontSize: w * 0.04,
+                                      color: Colors.white,
+                                    ),
+                                    code: TextStyle(
+                                      fontSize: w * 0.035,
+                                      color: const Color(0xFF74EEFF),
+                                      backgroundColor: Colors.black26,
                                     ),
                                   ),
                                 ),
-                                SizedBox(height: w * 0.02),
-                                Text(
-                                  _formatTime(now),
-                                  style: TextStyle(
-                                    fontSize: w * 0.03,
-                                    color: AppTheme.textSoft,
-                                  ),
+                              ),
+                              SizedBox(height: w * 0.02),
+                              Text(
+                                _formatTime(now),
+                                style: TextStyle(
+                                  fontSize: w * 0.03,
+                                  color: AppTheme.textSoft,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    );
-                  }
+                        ),
+                      ],
+                    ),
+                  );
                 }),
 
-                /// LOADING DOTS
                 if (_isLoading)
                   Padding(
                     padding: EdgeInsets.only(bottom: w * 0.04),
@@ -634,19 +696,16 @@ class _AITutorPageState extends State<AITutorPage> {
             ),
           ),
 
-          /// INPUT BAR
           Container(
             color: Colors.black12,
             padding: EdgeInsets.fromLTRB(w * 0.045, 10, w * 0.045, 14),
             child: Row(
               children: [
-                // ✅ ATTACH FILE BUTTON
                 GestureDetector(
                   onTap: _attachFile,
                   child: _circleAction(Icons.attach_file, w),
                 ),
                 const SizedBox(width: 8),
-
                 Expanded(
                   child: Container(
                     height: w * 0.13,
@@ -665,7 +724,8 @@ class _AITutorPageState extends State<AITutorPage> {
                       onSubmitted: (_) => _sendMessage(),
                       decoration: InputDecoration(
                         border: InputBorder.none,
-                        hintText: _isListening ? 'Listening...' : 'Speak or type...',
+                        hintText:
+                            _isListening ? 'Listening...' : 'Speak or type...',
                         hintStyle: TextStyle(
                           color: _isListening
                               ? const Color(0xFF74EEFF)
@@ -676,7 +736,6 @@ class _AITutorPageState extends State<AITutorPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-
                 SizedBox(
                   width: w * 0.2,
                   height: w * 0.13,
@@ -702,8 +761,6 @@ class _AITutorPageState extends State<AITutorPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-
-                // ✅ MIC BUTTON
                 GestureDetector(
                   onTap: _toggleListening,
                   child: Container(
