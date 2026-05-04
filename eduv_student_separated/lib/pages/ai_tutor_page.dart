@@ -374,8 +374,7 @@ class _AITutorPageState extends State<AITutorPage> {
 final reply = await AiTutorService.chat(
   messages: apiMessages,
   mode: _labels[_selectedMode],
-);flutter run -d chrome
-
+);
       if (mounted) {
         setState(() {
           _messages.add({
