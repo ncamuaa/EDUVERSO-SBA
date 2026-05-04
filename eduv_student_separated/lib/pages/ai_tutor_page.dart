@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-
+import '../services/ai_tutor_service.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_size.dart';
 import '../widgets/common_widgets.dart';
@@ -13,38 +14,134 @@ class AITutorPage extends StatefulWidget {
 }
 
 class _AITutorPageState extends State<AITutorPage> {
-  final TextEditingController controller = TextEditingController();
-  int selected = 0;
-  final labels = ['Study', 'Explain', 'Exam', 'Quiz'];
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  int _selectedMode = 0;
+  final List<String> _labels = ['Study', 'Explain', 'Exam', 'Quiz'];
+  bool _isLoading = false;
+
+  int _xp = 0;
+  int _level = 1;
+  double _progress = 0.0;
+
+  final List<Map<String, String>> _messages = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserStats();
+    _addGreeting();
+  }
 
   @override
   void dispose() {
-    controller.dispose();
+    _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _loadUserStats() async {
+    final cached = await AuthService.getCachedUser();
+    if (cached != null && mounted) {
+      setState(() {
+        _xp = (cached['xpInLevel'] ?? 0) as int;
+        _level = (cached['level'] ?? 1) as int;
+        _progress = (cached['progress'] ?? 0.0).toDouble();
+      });
+    }
+  }
+
+  void _addGreeting() {
+    final mode = _labels[_selectedMode];
+    final greetings = {
+      'Study': 'Hi Student! Ready to learn? Ask me anything! 📚',
+      'Explain': 'Hi! Give me any concept and I\'ll explain it simply! 💡',
+      'Exam': 'Let\'s get you exam-ready! What topic are we reviewing? 📝',
+      'Quiz': 'Quiz time! What topic would you like to be quizzed on? 🎯',
+    };
+
+    setState(() {
+      _messages.clear();
+      _messages.add({
+        'role': 'assistant',
+        'content': greetings[mode] ?? 'Hi! Ready to learn?',
+      });
+    });
+  }
+
+  void _onModeChanged(int index) {
+    setState(() => _selectedMode = index);
+    _addGreeting();
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty || _isLoading) return;
+
+    _controller.clear();
+
+    setState(() {
+      _messages.add({'role': 'user', 'content': text});
+      _isLoading = true;
+    });
+
+    _scrollToBottom();
+
+    try {
+      // Skip greeting message from API call
+      final apiMessages = _messages
+          .where((m) => !(m['role'] == 'assistant' && _messages.indexOf(m) == 0))
+          .toList();
+
+      final reply = await AiTutorService.chat(
+        messages: apiMessages,
+        mode: _labels[_selectedMode],
+      );
+
+      if (mounted) {
+        setState(() {
+          _messages.add({'role': 'assistant', 'content': reply});
+          _isLoading = false;
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _messages.add({
+            'role': 'assistant',
+            'content': 'Sorry, something went wrong. Please try again.',
+          });
+          _isLoading = false;
+        });
+        _scrollToBottom();
+      }
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  String _formatTime(DateTime time) {
+    final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
   }
 
   @override
   Widget build(BuildContext context) {
     final w = AppSize.w(context);
-
-    final horizontalPadding = w * 0.045;
-    final smallGap = w * 0.02;
-    final mediumGap = w * 0.03;
-
-    final xpFont = w * 0.11;
-    final levelFont = w * 0.045;
-    final tabFont = w * 0.035;
-    final bubbleFont = w * 0.04;
-    final timeFont = w * 0.03;
-    final inputFont = w * 0.04;
-    final sendFont = w * 0.04;
-
-    final tabHeight = w * 0.12;
-    final avatarRadius = w * 0.06;
-    final actionSize = w * 0.12;
-    final iconSize = w * 0.06;
-    final inputHeight = w * 0.13;
-    final sendWidth = w * 0.2;
 
     return StudentPageBase(
       title: 'AI Tutor',
@@ -52,51 +149,51 @@ class _AITutorPageState extends State<AITutorPage> {
         children: [
           Expanded(
             child: ListView(
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding,
-                12,
-                horizontalPadding,
-                12,
-              ),
+              controller: _scrollController,
+              padding: EdgeInsets.fromLTRB(w * 0.045, 12, w * 0.045, 12),
               children: [
+                /// XP CARD
                 appCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '0',
+                        '$_xp',
                         style: TextStyle(
-                          fontSize: xpFont,
+                          fontSize: w * 0.11,
                           fontWeight: FontWeight.w800,
                           color: Colors.white,
                         ),
                       ),
-                      SizedBox(height: smallGap),
+                      SizedBox(height: w * 0.02),
                       Text(
-                        'XP • Level 1',
+                        'XP • Level $_level',
                         style: TextStyle(
-                          fontSize: levelFont,
+                          fontSize: w * 0.045,
                           color: AppTheme.textSoft,
                         ),
                       ),
-                      SizedBox(height: mediumGap),
-                      progressBar(0.0),
+                      SizedBox(height: w * 0.03),
+                      progressBar(_progress),
                     ],
                   ),
                 ),
-                SizedBox(height: mediumGap),
+
+                SizedBox(height: w * 0.03),
+
+                /// MODE TABS
                 Row(
-                  children: List.generate(labels.length, (i) {
-                    final active = i == selected;
+                  children: List.generate(_labels.length, (i) {
+                    final active = i == _selectedMode;
                     return Expanded(
                       child: Padding(
                         padding: EdgeInsets.only(
-                          right: i == labels.length - 1 ? 0 : 8,
+                          right: i == _labels.length - 1 ? 0 : 8,
                         ),
                         child: GestureDetector(
-                          onTap: () => setState(() => selected = i),
+                          onTap: () => _onModeChanged(i),
                           child: Container(
-                            height: tabHeight,
+                            height: w * 0.12,
                             decoration: BoxDecoration(
                               color: active
                                   ? const Color(0xFF74EEFF)
@@ -105,10 +202,9 @@ class _AITutorPageState extends State<AITutorPage> {
                             ),
                             alignment: Alignment.center,
                             child: Text(
-                              labels[i],
-                              textAlign: TextAlign.center,
+                              _labels[i],
                               style: TextStyle(
-                                fontSize: tabFont,
+                                fontSize: w * 0.035,
                                 fontWeight: FontWeight.w800,
                                 color: active ? Colors.black87 : Colors.white,
                               ),
@@ -119,72 +215,164 @@ class _AITutorPageState extends State<AITutorPage> {
                     );
                   }),
                 ),
+
                 SizedBox(height: w * 0.06),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: avatarRadius,
-                      backgroundColor: Colors.white24,
-                      child: Icon(
-                        Icons.smart_toy,
-                        color: Colors.white,
-                        size: iconSize,
-                      ),
-                    ),
-                    SizedBox(width: w * 0.03),
-                    Expanded(
-                      child: Column(
+
+                /// CHAT MESSAGES
+                ..._messages.asMap().entries.map((entry) {
+                  final msg = entry.value;
+                  final isUser = msg['role'] == 'user';
+                  final now = DateTime.now();
+
+                  if (isUser) {
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: w * 0.04),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: w * 0.04,
-                              vertical: w * 0.03,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(.12),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Text(
-                              'Hi Student! Ready to learn?',
-                              style: TextStyle(
-                                fontSize: bubbleFont,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: smallGap),
-                          Text(
-                            '8:13 PM',
-                            style: TextStyle(
-                              fontSize: timeFont,
-                              color: AppTheme.textSoft,
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: w * 0.04,
+                                    vertical: w * 0.03,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF9074FF),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Text(
+                                    msg['content'] ?? '',
+                                    style: TextStyle(
+                                      fontSize: w * 0.04,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: w * 0.02),
+                                Text(
+                                  _formatTime(now),
+                                  style: TextStyle(
+                                    fontSize: w * 0.03,
+                                    color: AppTheme.textSoft,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
+                    );
+                  } else {
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: w * 0.04),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CircleAvatar(
+                            radius: w * 0.06,
+                            backgroundColor: Colors.white24,
+                            child: Icon(
+                              Icons.smart_toy,
+                              color: Colors.white,
+                              size: w * 0.06,
+                            ),
+                          ),
+                          SizedBox(width: w * 0.03),
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: w * 0.04,
+                                    vertical: w * 0.03,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(.12),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Text(
+                                    msg['content'] ?? '',
+                                    style: TextStyle(
+                                      fontSize: w * 0.04,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: w * 0.02),
+                                Text(
+                                  _formatTime(now),
+                                  style: TextStyle(
+                                    fontSize: w * 0.03,
+                                    color: AppTheme.textSoft,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                }),
+
+                /// LOADING DOTS
+                if (_isLoading)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: w * 0.04),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          radius: w * 0.06,
+                          backgroundColor: Colors.white24,
+                          child: Icon(
+                            Icons.smart_toy,
+                            color: Colors.white,
+                            size: w * 0.06,
+                          ),
+                        ),
+                        SizedBox(width: w * 0.03),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: w * 0.04,
+                            vertical: w * 0.03,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(.12),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _dot(w, 0),
+                              _dot(w, 150),
+                              _dot(w, 300),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
               ],
             ),
           ),
+
+          /// INPUT BAR
           Container(
             color: Colors.black12,
-            padding: EdgeInsets.fromLTRB(
-              horizontalPadding,
-              10,
-              horizontalPadding,
-              14,
-            ),
+            padding: EdgeInsets.fromLTRB(w * 0.045, 10, w * 0.045, 14),
             child: Row(
               children: [
-                _circleAction(Icons.attach_file, actionSize, iconSize),
+                _circleAction(Icons.attach_file, w),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Container(
-                    height: inputHeight,
+                    height: w * 0.13,
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(.12),
                       borderRadius: BorderRadius.circular(16),
@@ -192,11 +380,12 @@ class _AITutorPageState extends State<AITutorPage> {
                     padding: EdgeInsets.symmetric(horizontal: w * 0.04),
                     alignment: Alignment.centerLeft,
                     child: TextField(
-                      controller: controller,
+                      controller: _controller,
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: inputFont,
+                        fontSize: w * 0.04,
                       ),
+                      onSubmitted: (_) => _sendMessage(),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         hintText: 'Speak or type...',
@@ -207,12 +396,14 @@ class _AITutorPageState extends State<AITutorPage> {
                 ),
                 const SizedBox(width: 8),
                 SizedBox(
-                  width: sendWidth,
-                  height: inputHeight,
+                  width: w * 0.2,
+                  height: w * 0.13,
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: _isLoading ? null : _sendMessage,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF9074FF),
+                      disabledBackgroundColor:
+                          const Color(0xFF9074FF).withOpacity(0.5),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -221,7 +412,7 @@ class _AITutorPageState extends State<AITutorPage> {
                     child: Text(
                       'Send',
                       style: TextStyle(
-                        fontSize: sendFont,
+                        fontSize: w * 0.04,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
@@ -229,7 +420,7 @@ class _AITutorPageState extends State<AITutorPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _circleAction(Icons.mic, actionSize, iconSize),
+                _circleAction(Icons.mic, w),
               ],
             ),
           ),
@@ -238,10 +429,29 @@ class _AITutorPageState extends State<AITutorPage> {
     );
   }
 
-  Widget _circleAction(IconData icon, double size, double iconSize) {
+  Widget _dot(double w, int delayMs) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.3, end: 1.0),
+      duration: Duration(milliseconds: 600 + delayMs),
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Container(
+          width: w * 0.02,
+          height: w * 0.02,
+          margin: EdgeInsets.symmetric(horizontal: w * 0.01),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _circleAction(IconData icon, double w) {
     return Container(
-      width: size,
-      height: size,
+      width: w * 0.12,
+      height: w * 0.12,
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(.12),
         borderRadius: BorderRadius.circular(16),
@@ -249,7 +459,7 @@ class _AITutorPageState extends State<AITutorPage> {
       child: Icon(
         icon,
         color: Colors.white,
-        size: iconSize,
+        size: w * 0.06,
       ),
     );
   }
