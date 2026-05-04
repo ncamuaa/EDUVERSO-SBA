@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -31,7 +32,7 @@ class _AITutorPageState extends State<AITutorPage> {
   int _level = 1;
   double _progress = 0.0;
 
-  final List<Map<String, String>> _messages = [];
+  final List<Map<String, dynamic>> _messages = [];
 
   @override
   void initState() {
@@ -78,6 +79,7 @@ class _AITutorPageState extends State<AITutorPage> {
       _messages.add({
         'role': 'assistant',
         'content': greetings[mode] ?? 'Hi! Ready to learn?',
+        'type': 'text',
       });
     });
   }
@@ -114,39 +116,180 @@ class _AITutorPageState extends State<AITutorPage> {
     }
   }
 
-  // ✅ ATTACH FILE — pick and send to AI
+  // ✅ ATTACH FILE — pick and send to AI (supports images too)
   void _attachFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'txt', 'doc', 'docx'],
-      withData: true,
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF1E1B2E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                'Attach',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.insert_drive_file, color: Colors.white, size: 22),
+              ),
+              title: const Text('Document', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+              subtitle: const Text('PDF, TXT, DOC, DOCX', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              onTap: () => Navigator.pop(context, 'file'),
+            ),
+            const SizedBox(height: 4),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF74EEFF).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.image, color: Color(0xFF74EEFF), size: 22),
+              ),
+              title: const Text('Image', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+              subtitle: const Text('JPG, PNG, GIF, WEBP', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              onTap: () => Navigator.pop(context, 'image'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
     );
 
-    if (result == null || result.files.isEmpty) return;
+    if (choice == null) return;
 
-    final file = result.files.first;
-    final fileName = file.name;
-    final bytes = file.bytes;
+    if (choice == 'file') {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'txt', 'doc', 'docx'],
+        withData: true,
+      );
 
-    if (bytes == null) return;
+      if (result == null || result.files.isEmpty) return;
 
-    // Convert file to text (for txt files)
-    String fileContent = '';
-    if (fileName.endsWith('.txt')) {
-      fileContent = String.fromCharCodes(bytes);
-    } else {
-      fileContent = '[File attached: $fileName — ${(bytes.length / 1024).toStringAsFixed(1)} KB]';
+      final file = result.files.first;
+      final fileName = file.name;
+      final bytes = file.bytes;
+      if (bytes == null) return;
+
+      String fileContent = '';
+      if (fileName.endsWith('.txt')) {
+        fileContent = String.fromCharCodes(bytes);
+      } else {
+        fileContent =
+            '[File attached: $fileName — ${(bytes.length / 1024).toStringAsFixed(1)} KB]';
+      }
+
+      final message =
+          'I\'ve attached a file called "$fileName". Please help me with it:\n\n$fileContent';
+      setState(() => _controller.text = message);
+      _sendMessage();
+    } else if (choice == 'image') {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      final fileName = file.name;
+      final bytes = file.bytes;
+      if (bytes == null) return;
+
+      final base64Image = base64Encode(bytes);
+      final mimeType = _getMimeType(fileName);
+
+      // Stop listening if mic was on
+      if (_isListening) {
+        await _speech.stop();
+        setState(() => _isListening = false);
+      }
+
+      setState(() {
+        _messages.add({
+          'role': 'user',
+          'content': '📎 Image attached: $fileName',
+          'type': 'image',
+          'imageBytes': bytes,
+          'fileName': fileName,
+        });
+        _isLoading = true;
+      });
+      _scrollToBottom();
+
+      try {
+        final reply = await AiTutorService.chatWithImage(
+          messages: _messages,
+          mode: _labels[_selectedMode],
+          imageBase64: base64Image,
+          mimeType: mimeType,
+        );
+
+        if (mounted) {
+          setState(() {
+            _messages.add({
+              'role': 'assistant',
+              'content': reply,
+              'type': 'text',
+            });
+            _isLoading = false;
+          });
+          _scrollToBottom();
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _messages.add({
+              'role': 'assistant',
+              'content': 'Sorry, could not process the image. Please try again.',
+              'type': 'text',
+            });
+            _isLoading = false;
+          });
+          _scrollToBottom();
+        }
+      }
     }
+  }
 
-    // Add as user message
-    final message = 'I\'ve attached a file called "$fileName". Please help me with it:\n\n$fileContent';
-    
-    setState(() {
-      _controller.text = message;
-    });
-
-    // Auto send
-    _sendMessage();
+  String _getMimeType(String fileName) {
+    final ext = fileName.split('.').last.toLowerCase();
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'image/jpeg';
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -162,7 +305,7 @@ class _AITutorPageState extends State<AITutorPage> {
     }
 
     setState(() {
-      _messages.add({'role': 'user', 'content': text});
+      _messages.add({'role': 'user', 'content': text, 'type': 'text'});
       _isLoading = true;
     });
 
@@ -171,6 +314,7 @@ class _AITutorPageState extends State<AITutorPage> {
     try {
       final apiMessages = _messages
           .where((m) => !(m['role'] == 'assistant' && _messages.indexOf(m) == 0))
+          .map((m) => {'role': m['role'] as String, 'content': m['content'] as String})
           .toList();
 
       final reply = await AiTutorService.chat(
@@ -180,7 +324,7 @@ class _AITutorPageState extends State<AITutorPage> {
 
       if (mounted) {
         setState(() {
-          _messages.add({'role': 'assistant', 'content': reply});
+          _messages.add({'role': 'assistant', 'content': reply, 'type': 'text'});
           _isLoading = false;
         });
         _scrollToBottom();
@@ -191,6 +335,7 @@ class _AITutorPageState extends State<AITutorPage> {
           _messages.add({
             'role': 'assistant',
             'content': 'Sorry, something went wrong. Please try again.',
+            'type': 'text',
           });
           _isLoading = false;
         });
@@ -301,6 +446,7 @@ class _AITutorPageState extends State<AITutorPage> {
                 ..._messages.asMap().entries.map((entry) {
                   final msg = entry.value;
                   final isUser = msg['role'] == 'user';
+                  final isImageMsg = msg['type'] == 'image';
                   final now = DateTime.now();
 
                   if (isUser) {
@@ -323,13 +469,38 @@ class _AITutorPageState extends State<AITutorPage> {
                                     color: const Color(0xFF9074FF),
                                     borderRadius: BorderRadius.circular(14),
                                   ),
-                                  child: Text(
-                                    msg['content'] ?? '',
-                                    style: TextStyle(
-                                      fontSize: w * 0.04,
-                                      color: Colors.white,
-                                    ),
-                                  ),
+                                  child: isImageMsg && msg['imageBytes'] != null
+                                      ? Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            ClipRRect(
+                                              borderRadius: BorderRadius.circular(10),
+                                              child: Image.memory(
+                                                msg['imageBytes'] as List<int> is Uint8List
+                                                    ? msg['imageBytes'] as Uint8List
+                                                    : Uint8List.fromList(
+                                                        msg['imageBytes'] as List<int>),
+                                                width: w * 0.55,
+                                                fit: BoxFit.cover,
+                                              ),
+                                            ),
+                                            SizedBox(height: w * 0.02),
+                                            Text(
+                                              msg['fileName'] ?? 'Image',
+                                              style: TextStyle(
+                                                fontSize: w * 0.032,
+                                                color: Colors.white70,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Text(
+                                          msg['content'] ?? '',
+                                          style: TextStyle(
+                                            fontSize: w * 0.04,
+                                            color: Colors.white,
+                                          ),
+                                        ),
                                 ),
                                 SizedBox(height: w * 0.02),
                                 Text(
@@ -494,9 +665,7 @@ class _AITutorPageState extends State<AITutorPage> {
                       onSubmitted: (_) => _sendMessage(),
                       decoration: InputDecoration(
                         border: InputBorder.none,
-                        hintText: _isListening
-                            ? 'Listening...'
-                            : 'Speak or type...',
+                        hintText: _isListening ? 'Listening...' : 'Speak or type...',
                         hintStyle: TextStyle(
                           color: _isListening
                               ? const Color(0xFF74EEFF)
