@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-
-import '../models/student_data.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_size.dart';
@@ -14,8 +12,42 @@ import 'modules_page.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
 
-class StudentDashboardPage extends StatelessWidget {
+class StudentDashboardPage extends StatefulWidget {
   const StudentDashboardPage({super.key});
+
+  @override
+  State<StudentDashboardPage> createState() => _StudentDashboardPageState();
+}
+
+class _StudentDashboardPageState extends State<StudentDashboardPage> {
+  late Future<Map<String, dynamic>> _profileFuture;
+
+  @override
+void initState() {
+  super.initState();
+  _profileFuture = _loadProfile();
+}
+
+Future<Map<String, dynamic>> _loadProfile() async {
+  final cached = await AuthService.getCachedUser();
+
+  // Refresh in background silently
+  AuthService.getProfile().then((_) {
+    if (mounted) {
+      setState(() {
+        _profileFuture = AuthService.getCachedUser()
+            .then((u) => {'user': u ?? {}});
+      });
+    }
+  });
+
+  // Return cached instantly, or wait for network if no cache
+  if (cached != null) {
+    return {'user': cached};
+  } else {
+    return AuthService.getProfile();
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -52,14 +84,10 @@ class StudentDashboardPage extends StatelessWidget {
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ProfilePage(),
-                          ),
-                        );
-                      },
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ProfilePage()),
+                      ),
                       borderRadius: BorderRadius.circular(999),
                       child: CircleAvatar(
                         radius: w * 0.06,
@@ -77,170 +105,182 @@ class StudentDashboardPage extends StatelessWidget {
 
               SizedBox(height: w * 0.05),
 
-              /// WELCOME TEXT
-              Text(
-                'Welcome,',
-                style: TextStyle(
-                  fontSize: w * 0.055,
-                  color: Colors.white70,
-                ),
-              ),
-
+              /// WELCOME + PROGRESS — single FutureBuilder for both
               FutureBuilder<Map<String, dynamic>>(
-                future: AuthService.getProfile(),
+                future: _profileFuture,
                 builder: (context, snapshot) {
                   final user = snapshot.data?['user'];
-                  final name = user?['fullName'] ?? StudentData.name;
+                  final name = user?['fullName'] ?? 'Student';
+                  final xp = (user?['xpInLevel'] ?? 0) as int;
+                  final level = (user?['level'] ?? 1) as int;
+                  final streak = (user?['streak'] ?? 0) as int;
+                  final progress = (user?['progress'] ?? 0.0).toDouble();
+                  final progressPercent = (progress * 100).toInt();
 
-                  return Text(
-                    name,
-                    style: TextStyle(
-                      fontSize: w * 0.07,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  );
-                },
-              ),
-
-              const SizedBox(height: 4),
-              Text(
-                'Shape your future, one lesson at a time.',
-                style: TextStyle(
-                  fontSize: w * 0.038,
-                  color: AppTheme.textSoft,
-                ),
-              ),
-
-              SizedBox(height: w * 0.05),
-
-              /// DAILY FOCUS
-              appCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Daily Focus',
-                      style: TextStyle(
-                        fontSize: w * 0.042,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white70,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Introduction to Programming',
-                      style: TextStyle(
-                        fontSize: w * 0.05,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    SizedBox(height: w * 0.03),
-                    Row(
-                      children: [
-                        Expanded(child: progressBar(0.5)),
-                        const SizedBox(width: 8),
-                        Text(
-                          '50%',
-                          style: TextStyle(
-                            fontSize: w * 0.038,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: w * 0.04),
-                    Container(
-                      height: w * 0.28,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF071C66), Color(0xFF1558E1)],
-                        ),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        'INTRODUCTION TO PROGRAMMING',
-                        textAlign: TextAlign.center,
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      /// WELCOME TEXT
+                      Text(
+                        'Welcome,',
                         style: TextStyle(
-                          fontSize: w * 0.04,
-                          letterSpacing: 1,
-                          fontWeight: FontWeight.w700,
+                          fontSize: w * 0.055,
+                          color: Colors.white70,
+                        ),
+                      ),
+                      Text(
+                        name,
+                        style: TextStyle(
+                          fontSize: w * 0.07,
+                          fontWeight: FontWeight.w800,
                           color: Colors.white,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-
-              SizedBox(height: w * 0.04),
-
-              /// PROGRESS
-              appCard(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Your Progress',
-                            style: TextStyle(
-                              fontSize: w * 0.042,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white70,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Level 1',
-                            style: TextStyle(
-                              fontSize: w * 0.055,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '60/100 XP',
-                            style: TextStyle(
-                              fontSize: w * 0.04,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '🔥 0-day streak',
-                            style: TextStyle(
-                              fontSize: w * 0.038,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 4),
+                      Text(
+                        'Shape your future, one lesson at a time.',
+                        style: TextStyle(
+                          fontSize: w * 0.038,
+                          color: AppTheme.textSoft,
+                        ),
                       ),
-                    ),
-                    SizedBox(width: w * 0.04),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '60% to next level',
-                            style: TextStyle(
-                              fontSize: w * 0.038,
-                              color: Colors.white70,
+
+                      SizedBox(height: w * 0.05),
+
+                      /// DAILY FOCUS
+                      appCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Daily Focus',
+                              style: TextStyle(
+                                fontSize: w * 0.042,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white70,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: w * 0.03),
-                          progressBar(0.6),
-                        ],
+                            const SizedBox(height: 6),
+                            Text(
+                              'Introduction to Programming',
+                              style: TextStyle(
+                                fontSize: w * 0.05,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(height: w * 0.03),
+                            Row(
+                              children: [
+                                Expanded(child: progressBar(0.5)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '50%',
+                                  style: TextStyle(
+                                    fontSize: w * 0.038,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: w * 0.04),
+                            Container(
+                              height: w * 0.28,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF071C66),
+                                    Color(0xFF1558E1)
+                                  ],
+                                ),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'INTRODUCTION TO PROGRAMMING',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: w * 0.04,
+                                  letterSpacing: 1,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+
+                      SizedBox(height: w * 0.04),
+
+                      /// PROGRESS CARD
+                      appCard(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Your Progress',
+                                    style: TextStyle(
+                                      fontSize: w * 0.042,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Level $level',
+                                    style: TextStyle(
+                                      fontSize: w * 0.055,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '$xp/100 XP',
+                                    style: TextStyle(
+                                      fontSize: w * 0.04,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    '🔥 $streak-day streak',
+                                    style: TextStyle(
+                                      fontSize: w * 0.038,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: w * 0.04),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '$progressPercent% to next level',
+                                    style: TextStyle(
+                                      fontSize: w * 0.038,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                  SizedBox(height: w * 0.03),
+                                  progressBar(progress),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
 
               SizedBox(height: w * 0.05),
@@ -258,22 +298,14 @@ class StudentDashboardPage extends StatelessWidget {
                       const AITutorPage(), w),
                   _homeButton(context, 'Modules', AppTheme.green,
                       Icons.menu_book_rounded, const ModulesPage(), w),
-                  _homeButton(
-                      context,
-                      'Peer Feedback',
-                      const Color(0xFFFF5F98),
-                      Icons.forum_outlined,
-                      const PeerFeedbackPage(),
-                      w),
+                  _homeButton(context, 'Peer Feedback',
+                      const Color(0xFFFF5F98), Icons.forum_outlined,
+                      const PeerFeedbackPage(), w),
                   _homeButton(context, 'Game Arena', AppTheme.yellow,
                       Icons.psychology_alt, const GameArenaPage(), w),
-                  _homeButton(
-                      context,
-                      'Announcement',
-                      const Color(0xFF4AA0FF),
-                      Icons.campaign_outlined,
-                      const AnnouncementsPage(),
-                      w),
+                  _homeButton(context, 'Announcement',
+                      const Color(0xFF4AA0FF), Icons.campaign_outlined,
+                      const AnnouncementsPage(), w),
                   _homeButton(context, 'Settings', const Color(0xFFA175FF),
                       Icons.settings, const SettingsPage(), w),
                 ],
