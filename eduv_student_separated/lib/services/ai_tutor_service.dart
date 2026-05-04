@@ -10,8 +10,17 @@ class AiTutorService {
     required List<Map<String, String>> messages,
     required String mode,
   }) async {
-    // ✅ Use AuthService.getToken() — works on web + mobile
     final token = await AuthService.getToken();
+
+    // 🔍 TEMP DEBUG
+    print('=== AI TUTOR DEBUG ===');
+    print('TOKEN: "$token"');
+    print('TOKEN EMPTY: ${token.isEmpty}');
+    print('======================');
+
+    if (token.isEmpty) {
+      throw Exception('Not authenticated. Please login again.');
+    }
 
     final response = await http.post(
       Uri.parse('$baseUrl/chat'),
@@ -24,6 +33,10 @@ class AiTutorService {
         'messages': messages,
       }),
     );
+
+    // 🔍 TEMP DEBUG
+    print('STATUS: ${response.statusCode}');
+    print('RESPONSE: ${response.body}');
 
     final data = jsonDecode(response.body);
 
