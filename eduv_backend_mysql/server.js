@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const authRoutes = require('./routes/authRoutes');
+const aiTutorRoutes = require('./routes/aiTutorRoutes'); // ✅ new
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/ai-tutor', aiTutorRoutes); // ✅ new
 
 app.use((req, res) => {
   res.status(404).json({
