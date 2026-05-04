@@ -53,7 +53,7 @@ exports.chat = async (req, res, next) => {
     const systemPrompt = SYSTEM_PROMPTS[selectedMode];
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash-latest',
+      model: 'gemini-flash-latest',
       systemInstruction: systemPrompt,
     });
 
