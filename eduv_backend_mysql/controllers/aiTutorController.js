@@ -73,7 +73,21 @@ exports.chat = async (req, res, next) => {
       reply,
       mode: selectedMode,
     });
-  } catch (error) {
-    next(error);
+    } catch (error) {
+    console.error('AI Tutor error:', error);
+
+    if (error.status === 429) {
+      return res.status(200).json({
+        success: true,
+        reply:
+          '⚠️ AI Tutor is temporarily unavailable because the daily AI request limit has been reached. Please try again later.',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      reply:
+        '⚠️ AI Tutor is temporarily unavailable right now. Please try again later.',
+    });
   }
 };
