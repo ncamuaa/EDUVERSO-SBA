@@ -24,6 +24,19 @@ Keep score mentally and report it when asked. Make quizzes fun and encouraging.
 Always start by asking: "What topic would you like to be quizzed on?"`,
 };
 
+// ✅ TEMP: list available models for this API key
+exports.listModels = async (req, res) => {
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`
+    );
+    const data = await response.json();
+    res.json(data);
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+};
+
 exports.chat = async (req, res, next) => {
   try {
     const { messages, mode } = req.body;
@@ -40,18 +53,15 @@ exports.chat = async (req, res, next) => {
     const systemPrompt = SYSTEM_PROMPTS[selectedMode];
 
     const model = genAI.getGenerativeModel({
-     model: 'gemini-1.5-flash-latest',
+      model: 'gemini-1.5-flash-latest',
       systemInstruction: systemPrompt,
     });
 
-    // Convert to Gemini format
-    // All messages except the last one go into history
     const history = messages.slice(0, -1).map((msg) => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }],
     }));
 
-    // Last message is the current input
     const lastMessage = messages[messages.length - 1].content;
 
     const chat = model.startChat({ history });
