@@ -1,5 +1,10 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
 
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+import '../pages/lesson_page.dart';
+import '../services/auth_service.dart';
 import '../services/modules_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_size.dart';
@@ -498,9 +503,7 @@ class _ModuleCard extends StatelessWidget {
                 ),
               ),
               child: ElevatedButton(
-                onPressed: () {
-                  // TODO: navigate to module detail page, passing module.id
-                },
+                onPressed: () => _openModule(context, module),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,
@@ -523,6 +526,73 @@ class _ModuleCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _openModule(BuildContext context, Module module) async {
+    // Show a loading indicator while we fetch the first lesson
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFFA56BFF)),
+      ),
+    );
+
+    try {
+      final token = await AuthService.getToken();
+      final res = await http.get(
+        Uri.parse(
+          'https://eduverso-sba-production.up.railway.app/api/lessons/module/${module.id}',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (!context.mounted) return;
+      Navigator.pop(context); // close loader
+
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+
+      if (data['success'] == true &&
+          (data['lessons'] as List).isNotEmpty) {
+        final first = (data['lessons'] as List)[0] as Map<String, dynamic>;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => LessonPage(
+              lessonId: first['id'] as int,
+              lessonTitle: first['title'] as String,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'No lessons available for ${module.title} yet.',
+            ),
+            backgroundColor: const Color(0xFFA56BFF),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.pop(context); // close loader
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: const Color(0xFFFF5F7E),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   Widget _badge(String label, Color color, double w) {

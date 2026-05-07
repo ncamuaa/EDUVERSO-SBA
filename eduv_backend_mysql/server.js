@@ -6,6 +6,7 @@ dotenv.config();
 const authRoutes    = require('./routes/authRoutes');
 const aiTutorRoutes = require('./routes/aiTutorRoutes');
 const modulesRoutes = require('./routes/modulesRoutes'); // ✅ new
+const lessonsRoutes = require('./routes/lessonsRoutes');
 
 const app = express();
 app.use(cors());
@@ -21,6 +22,7 @@ app.get('/', (req, res) => {
 app.use('/api/auth',      authRoutes);
 app.use('/api/ai-tutor',  aiTutorRoutes);
 app.use('/api/modules',   modulesRoutes); // ✅ new
+app.use('/api/lessons', lessonsRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
