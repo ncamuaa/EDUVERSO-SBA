@@ -6,13 +6,9 @@ class AuthService {
   static const String baseUrl =
       'https://eduverso-sba-production.up.railway.app/api/auth';
 
-  // ✅ In-memory fallback for web
   static String? _cachedToken;
   static Map<String, dynamic>? _cachedUser;
 
-  // =========================
-  // LOGIN
-  // =========================
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -30,39 +26,35 @@ class AuthService {
 
     if (response.statusCode == 200 && data['success'] == true) {
       final prefs = await SharedPreferences.getInstance();
+
       await prefs.clear();
 
-      // Save to SharedPreferences
-      await prefs.setString('token', data['token']);
-      await prefs.setString('user', jsonEncode(data['user']));
-
-      // ✅ Also save in memory (works on web)
       _cachedToken = data['token'];
-      _cachedUser = Map<String, dynamic>.from(data['user']);
+      await prefs.setString('token', _cachedToken!);
 
-      return data;
+      final profileData = await getProfile();
+      _cachedUser = Map<String, dynamic>.from(profileData['user']);
+
+      await prefs.setString('user', jsonEncode(_cachedUser));
+
+      return profileData;
     } else {
       throw Exception(data['message'] ?? 'Login failed');
     }
   }
 
-  // =========================
-  // GET TOKEN
-  // =========================
   static Future<String> getToken() async {
-    // Try memory first (web-safe)
-    if (_cachedToken != null) return _cachedToken!;
+    if (_cachedToken != null && _cachedToken!.isNotEmpty) {
+      return _cachedToken!;
+    }
 
-    // Fallback to SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
+
     _cachedToken = token;
     return token;
   }
 
-  // =========================
-  // GET PROFILE (network)
-  // =========================
   static Future<Map<String, dynamic>> getProfile() async {
     final token = await getToken();
 
@@ -77,50 +69,169 @@ class AuthService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode == 200 && data['success'] == true) {
-      // Update both caches
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user', jsonEncode(data['user']));
+
       _cachedUser = Map<String, dynamic>.from(data['user']);
+
+      await prefs.setString('user', jsonEncode(_cachedUser));
+
       return data;
     } else {
       throw Exception(data['message'] ?? 'Failed to load profile');
     }
   }
 
-  // =========================
-  // GET CACHED USER (instant, no network)
-  // =========================
   static Future<Map<String, dynamic>?> getCachedUser() async {
-    // Try memory first
     if (_cachedUser != null) return _cachedUser;
 
-    // Fallback to SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     final userJson = prefs.getString('user');
+
     if (userJson == null) return null;
-    _cachedUser = jsonDecode(userJson);
+
+    _cachedUser = Map<String, dynamic>.from(jsonDecode(userJson));
     return _cachedUser;
   }
 
-  // =========================
-  // IS LOGGED IN
-  // =========================
   static Future<bool> isLoggedIn() async {
-    if (_cachedToken != null) return true;
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token') != null;
+    final token = await getToken();
+    return token.isNotEmpty;
   }
 
-  // =========================
-  // LOGOUT
-  // =========================
   static Future<void> logout() async {
-    // Clear memory
     _cachedToken = null;
     _cachedUser = null;
 
-    // Clear SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+  }
+
+  static Future<Map<String, dynamic>> updateProfile({
+    required String fullName,
+    String? username,
+  }) async {
+    final token = await getToken();
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/profile'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'fullName': fullName,
+        if (username != null && username.isNotEmpty) 'username': username,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && data['success'] == true) {
+      _cachedUser ??= {};
+      _cachedUser!['fullName'] = fullName;
+
+      if (username != null && username.isNotEmpty) {
+        _cachedUser!['username'] = username;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user', jsonEncode(_cachedUser));
+
+      return data;
+    } else {
+      throw Exception(data['message'] ?? 'Failed to update profile');
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateEmail({
+    required String email,
+  }) async {
+    final token = await getToken();
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/email'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'email': email}),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && data['success'] == true) {
+      if (data['token'] != null) {
+        _cachedToken = data['token'];
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', _cachedToken!);
+      }
+
+      _cachedUser ??= {};
+      _cachedUser!['email'] = email;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user', jsonEncode(_cachedUser));
+
+      return data;
+    } else {
+      throw Exception(data['message'] ?? 'Failed to update email');
+    }
+  }
+
+  static Future<Map<String, dynamic>> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final token = await getToken();
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && data['success'] == true) {
+      return data;
+    } else {
+      throw Exception(data['message'] ?? 'Failed to update password');
+    }
+  }
+
+  static Future<Map<String, dynamic>> updatePhone({
+    required String phone,
+  }) async {
+    final token = await getToken();
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/phone'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'phone': phone}),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && data['success'] == true) {
+      _cachedUser ??= {};
+      _cachedUser!['phone'] = phone;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user', jsonEncode(_cachedUser));
+
+      return data;
+    } else {
+      throw Exception(data['message'] ?? 'Failed to update phone');
+    }
   }
 }
