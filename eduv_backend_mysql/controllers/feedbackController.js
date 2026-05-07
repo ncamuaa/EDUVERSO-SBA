@@ -7,7 +7,7 @@ const getFeedback = async (req, res) => {
 
   try {
     let query = `
-      SELECT f.*, u.name AS giver_name
+      SELECT f.*, u.full_name AS giver_name
       FROM feedback f
       JOIN users u ON f.giver_id = u.id
       WHERE f.receiver_id = ?
