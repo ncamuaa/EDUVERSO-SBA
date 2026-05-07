@@ -3,32 +3,37 @@ import 'package:flutter/material.dart';
 import '../utils/app_size.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/student_page_base.dart';
+import 'escape_the_program_page.dart'; // add your actual imports
+import 'guess_game_page.dart';
 
 class GameArenaPage extends StatelessWidget {
   const GameArenaPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final w = AppSize.w(context); // ✅ FIXED
+    final w = AppSize.w(context);
 
     final games = [
       (
         'Escape The Program',
         'Solve coding puzzles in a neon maze.',
         const Color(0xFFB04CFF),
-        true
+        true,
+        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EscapeTheProgramPage())),
       ),
       (
         'Guess Game',
         'Test your knowledge and earn XP!',
         const Color(0xFFFFCC29),
-        true
+        true,
+        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuessGamePage())),
       ),
       (
         'Coming Soon',
         'More games on the way!',
         const Color(0xFF3657C9),
-        false
+        false,
+        null,
       ),
     ];
 
@@ -40,7 +45,7 @@ class GameArenaPage extends StatelessWidget {
           Text(
             '🎮 Choose a Game',
             style: TextStyle(
-              fontSize: w * 0.05, // slightly reduced
+              fontSize: w * 0.05,
               fontWeight: FontWeight.w800,
               color: Colors.white,
             ),
@@ -57,11 +62,7 @@ class GameArenaPage extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(
-                            Icons.circle,
-                            size: w * 0.04, // slightly smaller
-                            color: g.$3,
-                          ),
+                          Icon(Icons.circle, size: w * 0.04, color: g.$3),
                           SizedBox(width: w * 0.02),
                           Expanded(
                             child: Text(
@@ -90,7 +91,7 @@ class GameArenaPage extends StatelessWidget {
                         width: double.infinity,
                         height: w * 0.11,
                         child: ElevatedButton(
-                          onPressed: g.$4 ? () {} : null,
+                          onPressed: g.$5, // ← uses the callback from the tuple
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white.withOpacity(.12),
                             shape: RoundedRectangleBorder(

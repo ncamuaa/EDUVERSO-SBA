@@ -20,9 +20,9 @@ router.post('/login', login);
 router.get('/profile', protect, profile);
 
 // ── Settings (write) — all require a valid JWT ─────────────────
-router.put('/profile',  protect, updateProfile);   // name / username
-router.put('/email',    protect, updateEmail);     // change email
-router.put('/password', protect, updatePassword);  // change password
-router.put('/phone',    protect, updatePhone);     // add / update phone
+router.put('/profile',  protect, updateProfile);
+router.put('/email',    protect, updateEmail);
+router.put('/password', protect, updatePassword);
+router.put('/phone',    protect, updatePhone);
 
 module.exports = router;
