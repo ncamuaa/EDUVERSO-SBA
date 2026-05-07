@@ -11,8 +11,7 @@ const getAnnouncements = async (req, res) => {
     );
 
     const [rows] = await db.execute(
-      `SELECT * FROM announcements ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-      [limit, offset]
+      `SELECT * FROM announcements ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
     );
 
     res.json({
@@ -27,7 +26,7 @@ const getAnnouncements = async (req, res) => {
     });
   } catch (err) {
     console.error('getAnnouncements error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -46,7 +45,7 @@ const createAnnouncement = async (req, res) => {
     res.status(201).json({ success: true, announcementId: result.insertId });
   } catch (err) {
     console.error('createAnnouncement error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
