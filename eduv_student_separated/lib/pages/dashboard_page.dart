@@ -23,31 +23,29 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   late Future<Map<String, dynamic>> _profileFuture;
 
   @override
-void initState() {
-  super.initState();
-  _profileFuture = _loadProfile();
-}
-
-Future<Map<String, dynamic>> _loadProfile() async {
-  final cached = await AuthService.getCachedUser();
-
-  // Refresh in background silently
-  AuthService.getProfile().then((_) {
-    if (mounted) {
-      setState(() {
-        _profileFuture = AuthService.getCachedUser()
-            .then((u) => {'user': u ?? {}});
-      });
-    }
-  });
-
-  // Return cached instantly, or wait for network if no cache
-  if (cached != null) {
-    return {'user': cached};
-  } else {
-    return AuthService.getProfile();
+  void initState() {
+    super.initState();
+    _profileFuture = _loadProfile();
   }
-}
+
+  Future<Map<String, dynamic>> _loadProfile() async {
+    final cached = await AuthService.getCachedUser();
+
+    AuthService.getProfile().then((_) {
+      if (mounted) {
+        setState(() {
+          _profileFuture = AuthService.getCachedUser()
+              .then((u) => {'user': u ?? {}});
+        });
+      }
+    });
+
+    if (cached != null) {
+      return {'user': cached};
+    } else {
+      return AuthService.getProfile();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +103,7 @@ Future<Map<String, dynamic>> _loadProfile() async {
 
               SizedBox(height: w * 0.05),
 
-              /// WELCOME + PROGRESS — single FutureBuilder for both
+              /// WELCOME + PROGRESS
               FutureBuilder<Map<String, dynamic>>(
                 future: _profileFuture,
                 builder: (context, snapshot) {
@@ -120,7 +118,6 @@ Future<Map<String, dynamic>> _loadProfile() async {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      /// WELCOME TEXT
                       Text(
                         'Welcome,',
                         style: TextStyle(
@@ -192,7 +189,7 @@ Future<Map<String, dynamic>> _loadProfile() async {
                                 gradient: const LinearGradient(
                                   colors: [
                                     Color(0xFF071C66),
-                                    Color(0xFF1558E1)
+                                    Color(0xFF1558E1),
                                   ],
                                 ),
                               ),
@@ -278,37 +275,50 @@ Future<Map<String, dynamic>> _loadProfile() async {
                           ],
                         ),
                       ),
+
+                      SizedBox(height: w * 0.05),
+
+                      /// GRID
+                      GridView.count(
+                        crossAxisCount: 2,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisSpacing: w * 0.04,
+                        mainAxisSpacing: w * 0.04,
+                        childAspectRatio: 2.5,
+                        children: [
+                          _homeButton(context, 'Voice Tutor', AppTheme.blue,
+                              Icons.mic, const AITutorPage(), w),
+                          _homeButton(context, 'Modules', AppTheme.green,
+                              Icons.menu_book_rounded, const ModulesPage(), w),
+                          _homeButton(
+                              context,
+                              'Peer Feedback',
+                              const Color(0xFFFF5F98),
+                              Icons.forum_outlined,
+                              const _FeedbackPageWrapper(),
+                              w),
+                          _homeButton(context, 'Game Arena', AppTheme.yellow,
+                              Icons.psychology_alt, const GameArenaPage(), w),
+                          _homeButton(
+                              context,
+                              'Announcement',
+                              const Color(0xFF4AA0FF),
+                              Icons.campaign_outlined,
+                              const AnnouncementsPage(),
+                              w),
+                          _homeButton(
+                              context,
+                              'Settings',
+                              const Color(0xFFA175FF),
+                              Icons.settings,
+                              const SettingsPage(),
+                              w),
+                        ],
+                      ),
                     ],
                   );
                 },
-              ),
-
-              SizedBox(height: w * 0.05),
-
-              /// GRID
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: w * 0.04,
-                mainAxisSpacing: w * 0.04,
-                childAspectRatio: 2.5,
-                children: [
-                  _homeButton(context, 'Voice Tutor', AppTheme.blue, Icons.mic,
-                      const AITutorPage(), w),
-                  _homeButton(context, 'Modules', AppTheme.green,
-                      Icons.menu_book_rounded, const ModulesPage(), w),
-                  _homeButton(context, 'Peer Feedback',
-                      const Color(0xFFFF5F98), Icons.forum_outlined,
-                      const PeerFeedbackPage(), w),
-                  _homeButton(context, 'Game Arena', AppTheme.yellow,
-                      Icons.psychology_alt, const GameArenaPage(), w),
-                  _homeButton(context, 'Announcement',
-                      const Color(0xFF4AA0FF), Icons.campaign_outlined,
-                      const AnnouncementsPage(), w),
-                  _homeButton(context, 'Settings', const Color(0xFFA175FF),
-                      Icons.settings, const SettingsPage(), w),
-                ],
               ),
             ],
           ),
@@ -362,5 +372,39 @@ Future<Map<String, dynamic>> _loadProfile() async {
         ),
       ),
     );
+  }
+}
+
+class _FeedbackPageWrapper extends StatefulWidget {
+  const _FeedbackPageWrapper();
+
+  @override
+  State<_FeedbackPageWrapper> createState() => _FeedbackPageWrapperState();
+}
+
+class _FeedbackPageWrapperState extends State<_FeedbackPageWrapper> {
+  int? _userId;
+
+  @override
+  void initState() {
+    super.initState();
+    AuthService.getCachedUser().then((u) {
+      if (mounted) {
+        setState(() => _userId = (u?['id'] ?? 0) as int);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_userId == null) {
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFFA56BFF)),
+        ),
+      );
+    }
+    return PeerFeedbackPage(userId: _userId!);
   }
 }

@@ -19,7 +19,7 @@ class StudentDrawer extends StatelessWidget {
     final items = [
       _DrawerLink('Voice Tutor', Icons.mic, const AITutorPage()),
       _DrawerLink('Modules', Icons.menu_book_rounded, const ModulesPage()),
-      _DrawerLink('Peer Feedback', Icons.forum_outlined, const PeerFeedbackPage()),
+      _DrawerLink('Peer Feedback', Icons.forum_outlined, const _FeedbackPageWrapper()),
       _DrawerLink('AI Quiz Arena', Icons.psychology_alt, const GameArenaPage()),
       _DrawerLink('Announcement', Icons.campaign_outlined, const AnnouncementsPage()),
       _DrawerLink('Settings', Icons.settings, const SettingsPage()),
@@ -143,9 +143,7 @@ class StudentDrawer extends StatelessWidget {
         onTap: () async {
           if (logout) {
             await AuthService.logout();
-
             if (!context.mounted) return;
-
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (_) => page),
@@ -191,4 +189,38 @@ class _DrawerLink {
   final Widget page;
 
   _DrawerLink(this.label, this.icon, this.page);
+}
+
+class _FeedbackPageWrapper extends StatefulWidget {
+  const _FeedbackPageWrapper();
+
+  @override
+  State<_FeedbackPageWrapper> createState() => _FeedbackPageWrapperState();
+}
+
+class _FeedbackPageWrapperState extends State<_FeedbackPageWrapper> {
+  int? _userId;
+
+  @override
+  void initState() {
+    super.initState();
+    AuthService.getCachedUser().then((u) {
+      if (mounted) {
+        setState(() => _userId = (u?['id'] ?? 0) as int);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_userId == null) {
+      return const Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFFA56BFF)),
+        ),
+      );
+    }
+    return PeerFeedbackPage(userId: _userId!);
+  }
 }
