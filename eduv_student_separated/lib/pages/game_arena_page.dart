@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import '../utils/app_size.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/student_page_base.dart';
-import 'escape_the_program_page.dart'; // add your actual imports
-import 'guess_game_page.dart';
+import 'quiz_page.dart';
 
 class GameArenaPage extends StatelessWidget {
   const GameArenaPage({super.key});
@@ -19,14 +18,22 @@ class GameArenaPage extends StatelessWidget {
         'Solve coding puzzles in a neon maze.',
         const Color(0xFFB04CFF),
         true,
-        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EscapeTheProgramPage())),
+        () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const _ComingSoonPage(title: 'Escape The Program'),
+              ),
+            ),
       ),
       (
         'Guess Game',
         'Test your knowledge and earn XP!',
         const Color(0xFFFFCC29),
         true,
-        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuessGamePage())),
+        () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const QuizPage()),
+            ),
       ),
       (
         'Coming Soon',
@@ -91,7 +98,7 @@ class GameArenaPage extends StatelessWidget {
                         width: double.infinity,
                         height: w * 0.11,
                         child: ElevatedButton(
-                          onPressed: g.$5, // ← uses the callback from the tuple
+                          onPressed: g.$5,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white.withOpacity(.12),
                             shape: RoundedRectangleBorder(
@@ -115,6 +122,30 @@ class GameArenaPage extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Temporary placeholder until Escape The Program is built
+class _ComingSoonPage extends StatelessWidget {
+  final String title;
+  const _ComingSoonPage({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF1A1A2E),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1A1A2E),
+        title: Text(title, style: const TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: const Center(
+        child: Text(
+          '🚧 Coming Soon',
+          style: TextStyle(color: Colors.white70, fontSize: 24),
+        ),
       ),
     );
   }
