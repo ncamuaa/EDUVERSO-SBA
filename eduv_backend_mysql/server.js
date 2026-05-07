@@ -8,6 +8,7 @@ const aiTutorRoutes = require('./routes/aiTutorRoutes');
 const modulesRoutes = require('./routes/modulesRoutes'); // ✅ new
 const lessonsRoutes = require('./routes/lessonsRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
+const announcementsRoutes = require('./routes/announcementsRoutes');
 
 const app = express();
 app.use(cors());
@@ -25,6 +26,7 @@ app.use('/api/ai-tutor',  aiTutorRoutes);
 app.use('/api/modules',   modulesRoutes); // ✅ new
 app.use('/api/lessons', lessonsRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/announcements', announcementsRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
