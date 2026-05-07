@@ -5,7 +5,6 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // =============================================================
 // GET /api/lessons/module/:moduleId
-// Returns all lessons for a module (title + order only, for a TOC).
 // =============================================================
 exports.getLessonsByModule = async (req, res, next) => {
   try {
@@ -30,14 +29,11 @@ exports.getLessonsByModule = async (req, res, next) => {
 
 // =============================================================
 // GET /api/lessons/:id
-// Returns one lesson with its content blocks, quiz, and user progress.
-// If no stored content exists, generates it with AI and saves it.
 // =============================================================
 exports.getLessonById = async (req, res, next) => {
   try {
     const lessonId = req.params.id;
 
-    // ── 1. Fetch lesson meta ──────────────────────────────────
     const [lessonRows] = await pool.execute(
       `SELECT l.id, l.title, l.module_id, l.order_index,
               m.title AS module_title, m.subject, m.grade_level, m.course
@@ -49,14 +45,11 @@ exports.getLessonById = async (req, res, next) => {
     );
 
     if (lessonRows.length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: 'Lesson not found.' });
+      return res.status(404).json({ success: false, message: 'Lesson not found.' });
     }
 
     const lesson = lessonRows[0];
 
-    // ── 2. Fetch content blocks ───────────────────────────────
     let [content] = await pool.execute(
       `SELECT id, type, body, language, order_index
        FROM lesson_content
@@ -65,12 +58,10 @@ exports.getLessonById = async (req, res, next) => {
       [lessonId]
     );
 
-    // ── 3. AI fallback if no stored content ───────────────────
     if (content.length === 0) {
       content = await _generateAndSaveContent(lesson, lessonId);
     }
 
-    // ── 4. Fetch quiz ─────────────────────────────────────────
     const [questions] = await pool.execute(
       `SELECT id, question, order_index
        FROM quiz_questions
@@ -92,7 +83,6 @@ exports.getLessonById = async (req, res, next) => {
       })
     );
 
-    // ── 5. Fetch user progress ────────────────────────────────
     const [progressRows] = await pool.execute(
       `SELECT completed, quiz_score, completed_at
        FROM user_progress
@@ -108,12 +98,7 @@ exports.getLessonById = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      lesson: {
-        ...lesson,
-        content,
-        quiz,
-        progress,
-      },
+      lesson: { ...lesson, content, quiz, progress },
     });
   } catch (error) {
     next(error);
@@ -123,35 +108,46 @@ exports.getLessonById = async (req, res, next) => {
 // =============================================================
 // POST /api/lessons/:id/complete
 // Body: { quizAnswers: { [questionId]: optionId } }
-// Marks lesson complete and saves quiz score.
 // =============================================================
 exports.completeLesson = async (req, res, next) => {
   try {
     const lessonId = req.params.id;
     const { quizAnswers = {} } = req.body;
 
-    // Grade the quiz
     let correct = 0;
     let total = 0;
+
+    // correctAnswers: { questionId -> correctOptionId }  ← returned to client
+    const correctAnswers = {};
 
     const questionIds = Object.keys(quizAnswers).map(Number);
 
     if (questionIds.length > 0) {
       const placeholders = questionIds.map(() => '?').join(',');
-      const [correctOptions] = await pool.execute(
-        `SELECT question_id FROM quiz_options
-         WHERE id IN (${placeholders}) AND is_correct = 1`,
-        Object.values(quizAnswers).map(Number)
+
+      // Fetch the correct option ID for every submitted question
+      const [correctRows] = await pool.execute(
+        `SELECT question_id, id AS option_id
+         FROM quiz_options
+         WHERE question_id IN (${placeholders}) AND is_correct = 1`,
+        questionIds
       );
 
-      const correctSet = new Set(correctOptions.map((r) => r.question_id));
+      // Build map and grade in one pass
+      for (const row of correctRows) {
+        correctAnswers[row.question_id] = row.option_id;
+      }
+
       total = questionIds.length;
-      correct = questionIds.filter((qid) => correctSet.has(qid)).length;
+      correct = questionIds.filter(
+        (qid) => correctAnswers[qid] !== undefined &&
+                 correctAnswers[qid] === Number(quizAnswers[qid])
+      ).length;
     }
 
     const score = total > 0 ? Math.round((correct / total) * 100) : 100;
 
-    // Upsert progress row
+    // Upsert progress
     await pool.execute(
       `INSERT INTO user_progress (user_id, lesson_id, completed, quiz_score, completed_at)
        VALUES (?, ?, 1, ?, NOW())
@@ -162,7 +158,7 @@ exports.completeLesson = async (req, res, next) => {
       [req.user.id, lessonId, score]
     );
 
-    // Award XP for completing a lesson (+20) and bonus for perfect quiz (+10)
+    // Award XP
     const xpGained = score === 100 ? 30 : 20;
     await pool.execute(
       `UPDATE users
@@ -172,6 +168,7 @@ exports.completeLesson = async (req, res, next) => {
       [xpGained, xpGained, req.user.id]
     );
 
+    console.log('[completeLesson] correctAnswers:', JSON.stringify(correctAnswers));
     return res.status(200).json({
       success: true,
       message: 'Lesson completed!',
@@ -179,6 +176,7 @@ exports.completeLesson = async (req, res, next) => {
       correct,
       total,
       xpGained,
+      correctAnswers,   // { "12": 45, "13": 47, ... }  questionId → correct optionId
     });
   } catch (error) {
     next(error);
@@ -204,7 +202,7 @@ Requirements:
 - Start with a clear text explanation
 - Include at least one code example relevant to the topic
 - Use simple, friendly language suitable for Grade 11/12 students
-- Body text may use basic markdown (##, **, -, \n)`;
+- Body text may use basic markdown (##, **, -, \\n)`;
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
@@ -218,7 +216,6 @@ Requirements:
   try {
     blocks = JSON.parse(raw);
   } catch {
-    // Fallback single block if AI returns malformed JSON
     blocks = [
       {
         type: 'text',
@@ -228,18 +225,11 @@ Requirements:
     ];
   }
 
-  // Persist so next load is instant
   for (const block of blocks) {
     await pool.execute(
       `INSERT INTO lesson_content (lesson_id, type, body, language, order_index)
        VALUES (?, ?, ?, ?, ?)`,
-      [
-        lessonId,
-        block.type,
-        block.body,
-        block.language ?? null,
-        block.order_index,
-      ]
+      [lessonId, block.type, block.body, block.language ?? null, block.order_index]
     );
   }
 

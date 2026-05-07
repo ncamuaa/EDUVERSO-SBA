@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../utils/app_size.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/student_page_base.dart';
+import 'quiz_page.dart'; // 👈 import the new quiz page
 
 class LessonPage extends StatefulWidget {
   final int lessonId;
@@ -22,19 +23,10 @@ class LessonPage extends StatefulWidget {
 }
 
 class _LessonPageState extends State<LessonPage> {
-  // ── State ─────────────────────────────────────────────────────────────────
   bool _loading = true;
-  bool _submitting = false;
   String? _error;
   LessonDetail? _lesson;
 
-  // ── Quiz state ────────────────────────────────────────────────────────────
-  // questionId → selected optionId
-  final Map<int, int> _answers = {};
-  bool _quizSubmitted = false;
-  CompletionResult? _result;
-
-  // ── Scroll ────────────────────────────────────────────────────────────────
   final _scrollCtrl = ScrollController();
 
   @override
@@ -49,8 +41,6 @@ class _LessonPageState extends State<LessonPage> {
     super.dispose();
   }
 
-  // ── Data ──────────────────────────────────────────────────────────────────
-
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -62,10 +52,6 @@ class _LessonPageState extends State<LessonPage> {
       setState(() {
         _lesson = lesson;
         _loading = false;
-        // Pre-fill if already completed
-        if (lesson.progress.completed) {
-          _quizSubmitted = true;
-        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -75,54 +61,6 @@ class _LessonPageState extends State<LessonPage> {
       });
     }
   }
-
-  Future<void> _submitQuiz() async {
-    final lesson = _lesson!;
-    // Validate all questions answered
-    if (_answers.length < lesson.quiz.length) {
-      _toast('Please answer all ${lesson.quiz.length} questions first.');
-      return;
-    }
-
-    setState(() => _submitting = true);
-    try {
-      final result = await LessonService.completeLesson(
-          widget.lessonId, _answers);
-      if (!mounted) return;
-      setState(() {
-        _result = result;
-        _quizSubmitted = true;
-        _submitting = false;
-      });
-      // Scroll to results
-      await Future.delayed(const Duration(milliseconds: 300));
-      _scrollCtrl.animateTo(
-        _scrollCtrl.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 600),
-        curve: Curves.easeOut,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _submitting = false);
-      _toast(e.toString().replaceFirst('Exception: ', ''));
-    }
-  }
-
-  void _toast(String msg) {
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: const Color(0xFFA56BFF),
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -148,8 +86,7 @@ class _LessonPageState extends State<LessonPage> {
           children: [
             Text('⚠️',
                 style: TextStyle(
-                    fontSize: w * 0.12,
-                    decoration: TextDecoration.none)),
+                    fontSize: w * 0.12, decoration: TextDecoration.none)),
             SizedBox(height: w * 0.04),
             Text(
               _error!,
@@ -188,7 +125,7 @@ class _LessonPageState extends State<LessonPage> {
         SizedBox(height: w * 0.04),
 
         // ── Completion banner (if already done) ───────────────
-        if (lesson.progress.completed && _result == null)
+        if (lesson.progress.completed)
           _CompletedBanner(
               score: lesson.progress.quizScore ?? 100, w: w),
 
@@ -204,42 +141,28 @@ class _LessonPageState extends State<LessonPage> {
                   : _TextBlock(body: block.body, w: w),
             )),
 
-        // ── Quiz section ──────────────────────────────────────
+        // ── Quiz button ───────────────────────────────────────
         if (lesson.quiz.isNotEmpty) ...[
-          _SectionDivider(label: '📝 Quiz', w: w),
-          SizedBox(height: w * 0.03),
-          ...lesson.quiz.asMap().entries.map(
-                (entry) => Padding(
-                  padding: EdgeInsets.only(bottom: w * 0.04),
-                  child: _QuizCard(
-                    index: entry.key,
-                    question: entry.value,
-                    selectedOptionId: _answers[entry.value.id],
-                    submitted: _quizSubmitted,
-                    w: w,
-                    onSelect: _quizSubmitted
-                        ? null
-                        : (optionId) {
-                            setState(() =>
-                                _answers[entry.value.id] = optionId);
-                          },
+          SizedBox(height: w * 0.02),
+          _QuizButton(
+            w: w,
+            completed: lesson.progress.completed,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => QuizPage(
+                    lessonId: widget.lessonId,
+                    lessonTitle: widget.lessonTitle,
+                    questions: lesson.quiz,
+                    alreadyCompleted: lesson.progress.completed,
+                    previousScore: lesson.progress.quizScore,
                   ),
                 ),
-              ),
-
-          // Submit button
-          if (!_quizSubmitted)
-            _SubmitButton(
-              onPressed: _submitQuiz,
-              loading: _submitting,
-              answered: _answers.length,
-              total: lesson.quiz.length,
-              w: w,
-            ),
-
-          // Results card
-          if (_quizSubmitted && _result != null)
-            _ResultCard(result: _result!, w: w),
+              );
+            },
+          ),
+          SizedBox(height: w * 0.02),
         ],
       ],
     );
@@ -247,7 +170,96 @@ class _LessonPageState extends State<LessonPage> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sub-widgets
+// Quiz button
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _QuizButton extends StatelessWidget {
+  const _QuizButton({
+    required this.w,
+    required this.completed,
+    required this.onTap,
+  });
+
+  final double w;
+  final bool completed;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(
+            horizontal: w * 0.05, vertical: w * 0.045),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF8A63FF), Color(0xFFA77BFF)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFA56BFF).withOpacity(0.35),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(w * 0.025),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                completed ? '🔁' : '📝',
+                style: TextStyle(
+                    fontSize: w * 0.05, decoration: TextDecoration.none),
+              ),
+            ),
+            SizedBox(width: w * 0.04),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    completed ? 'Retake Quiz' : 'Take Quiz',
+                    style: TextStyle(
+                      fontSize: w * 0.042,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      decoration: TextDecoration.none,
+                    ),
+                  ),
+                  SizedBox(height: w * 0.005),
+                  Text(
+                    completed
+                        ? 'Try again to improve your score'
+                        : 'Test your knowledge on this lesson',
+                    style: TextStyle(
+                      fontSize: w * 0.031,
+                      color: Colors.white.withOpacity(0.75),
+                      decoration: TextDecoration.none,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded,
+                color: Colors.white70, size: w * 0.04),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-widgets (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _MetaBar extends StatelessWidget {
@@ -295,15 +307,12 @@ class _TextBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Simple markdown-ish rendering: parse ## headings and **bold**
     return appCard(
       child: _MarkdownText(text: body, w: w),
     );
   }
 }
 
-/// Very lightweight markdown renderer (headings + bold + bullets).
-/// For full markdown, swap this out with the `flutter_markdown` package.
 class _MarkdownText extends StatelessWidget {
   const _MarkdownText({required this.text, required this.w});
   final String text;
@@ -340,8 +349,7 @@ class _MarkdownText extends StatelessWidget {
                         color: const Color(0xFFA56BFF),
                         fontSize: w * 0.038,
                         decoration: TextDecoration.none)),
-                Expanded(
-                    child: _inlineText(line.substring(2), w)),
+                Expanded(child: _inlineText(line.substring(2), w)),
               ],
             ),
           );
@@ -356,7 +364,6 @@ class _MarkdownText extends StatelessWidget {
   }
 
   Widget _inlineText(String line, double w) {
-    // Handle **bold** inline
     final spans = <TextSpan>[];
     final regex = RegExp(r'\*\*(.*?)\*\*');
     int last = 0;
@@ -406,10 +413,9 @@ class _CodeBlock extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Language tag + copy button
           Padding(
-            padding: EdgeInsets.fromLTRB(
-                w * 0.04, w * 0.025, w * 0.025, 0),
+            padding:
+                EdgeInsets.fromLTRB(w * 0.04, w * 0.025, w * 0.025, 0),
             child: Row(
               children: [
                 Container(
@@ -452,7 +458,6 @@ class _CodeBlock extends StatelessWidget {
               ],
             ),
           ),
-          // Code content
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.fromLTRB(
@@ -464,291 +469,6 @@ class _CodeBlock extends StatelessWidget {
                 fontSize: w * 0.035,
                 color: const Color(0xFFD8C3FF),
                 height: 1.6,
-                decoration: TextDecoration.none,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionDivider extends StatelessWidget {
-  const _SectionDivider({required this.label, required this.w});
-  final String label;
-  final double w;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-            child: Container(
-                height: 0.5,
-                color: Colors.white.withOpacity(0.1))),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: w * 0.03),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: w * 0.038,
-              fontWeight: FontWeight.w700,
-              color: Colors.white70,
-              decoration: TextDecoration.none,
-            ),
-          ),
-        ),
-        Expanded(
-            child: Container(
-                height: 0.5,
-                color: Colors.white.withOpacity(0.1))),
-      ],
-    );
-  }
-}
-
-class _QuizCard extends StatelessWidget {
-  const _QuizCard({
-    required this.index,
-    required this.question,
-    required this.selectedOptionId,
-    required this.submitted,
-    required this.w,
-    required this.onSelect,
-  });
-
-  final int index;
-  final QuizQuestion question;
-  final int? selectedOptionId;
-  final bool submitted;
-  final double w;
-  final ValueChanged<int>? onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return appCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Q${index + 1}.  ${question.question}',
-            style: TextStyle(
-              fontSize: w * 0.04,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-              decoration: TextDecoration.none,
-            ),
-          ),
-          SizedBox(height: w * 0.03),
-          ...question.options.map((opt) {
-            final isSelected = selectedOptionId == opt.id;
-            // Determine colors after submit
-            Color borderColor = Colors.white.withOpacity(0.1);
-            Color bgColor = Colors.white.withOpacity(0.05);
-            Color textColor = Colors.white70;
-            Widget? trailingIcon;
-
-            if (submitted) {
-              // For the quiz we don't reveal correct answer client-side
-              // (correct answer data is NOT sent from server for security)
-              // We just show which was selected
-              if (isSelected) {
-                borderColor = const Color(0xFFA56BFF);
-                bgColor = const Color(0xFFA56BFF).withOpacity(0.15);
-                textColor = Colors.white;
-                trailingIcon = Icon(Icons.check_circle_rounded,
-                    color: const Color(0xFFA56BFF), size: w * 0.05);
-              }
-            } else if (isSelected) {
-              borderColor = const Color(0xFFA56BFF);
-              bgColor = const Color(0xFFA56BFF).withOpacity(0.12);
-              textColor = Colors.white;
-            }
-
-            return GestureDetector(
-              onTap: onSelect == null ? null : () => onSelect!(opt.id),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                margin: EdgeInsets.only(bottom: w * 0.02),
-                padding: EdgeInsets.symmetric(
-                    horizontal: w * 0.04, vertical: w * 0.03),
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: borderColor, width: 1),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        opt.text,
-                        style: TextStyle(
-                          fontSize: w * 0.037,
-                          color: textColor,
-                          decoration: TextDecoration.none,
-                        ),
-                      ),
-                    ),
-                    if (trailingIcon != null) trailingIcon,
-                  ],
-                ),
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-}
-
-class _SubmitButton extends StatelessWidget {
-  const _SubmitButton({
-    required this.onPressed,
-    required this.loading,
-    required this.answered,
-    required this.total,
-    required this.w,
-  });
-
-  final VoidCallback onPressed;
-  final bool loading;
-  final int answered;
-  final int total;
-  final double w;
-
-  @override
-  Widget build(BuildContext context) {
-    final ready = answered == total;
-    return Column(
-      children: [
-        if (!ready)
-          Padding(
-            padding: EdgeInsets.only(bottom: w * 0.02),
-            child: Text(
-              '$answered / $total answered',
-              style: TextStyle(
-                fontSize: w * 0.033,
-                color: Colors.white54,
-                decoration: TextDecoration.none,
-              ),
-            ),
-          ),
-        SizedBox(
-          width: double.infinity,
-          height: w * 0.13,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              gradient: LinearGradient(
-                colors: ready
-                    ? [const Color(0xFF8A63FF), const Color(0xFFA77BFF)]
-                    : [Colors.white12, Colors.white12],
-              ),
-            ),
-            child: ElevatedButton(
-              onPressed: (ready && !loading) ? onPressed : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                disabledBackgroundColor: Colors.transparent,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-              ),
-              child: loading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : Text(
-                      'Submit Quiz',
-                      style: TextStyle(
-                        fontSize: w * 0.042,
-                        fontWeight: FontWeight.w800,
-                        color: ready ? Colors.white : Colors.white38,
-                        decoration: TextDecoration.none,
-                      ),
-                    ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ResultCard extends StatelessWidget {
-  const _ResultCard({required this.result, required this.w});
-  final CompletionResult result;
-  final double w;
-
-  @override
-  Widget build(BuildContext context) {
-    final isPerfect = result.score == 100;
-    return Container(
-      margin: EdgeInsets.only(top: w * 0.04),
-      padding: EdgeInsets.all(w * 0.05),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isPerfect
-              ? [const Color(0xFF4ECA8D).withOpacity(0.2),
-                 const Color(0xFF4ECA8D).withOpacity(0.05)]
-              : [const Color(0xFFA56BFF).withOpacity(0.2),
-                 const Color(0xFFA56BFF).withOpacity(0.05)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isPerfect
-              ? const Color(0xFF4ECA8D).withOpacity(0.4)
-              : const Color(0xFFA56BFF).withOpacity(0.4),
-        ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            isPerfect ? '🎉' : '✅',
-            style: TextStyle(
-                fontSize: w * 0.1, decoration: TextDecoration.none),
-          ),
-          SizedBox(height: w * 0.02),
-          Text(
-            isPerfect ? 'Perfect Score!' : 'Lesson Complete!',
-            style: TextStyle(
-              fontSize: w * 0.055,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              decoration: TextDecoration.none,
-            ),
-          ),
-          SizedBox(height: w * 0.015),
-          Text(
-            '${result.correct} / ${result.total} correct  ·  ${result.score}%',
-            style: TextStyle(
-              fontSize: w * 0.038,
-              color: Colors.white70,
-              decoration: TextDecoration.none,
-            ),
-          ),
-          SizedBox(height: w * 0.025),
-          Container(
-            padding: EdgeInsets.symmetric(
-                horizontal: w * 0.04, vertical: w * 0.015),
-            decoration: BoxDecoration(
-              color: const Color(0xFFD0A06A).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                  color: const Color(0xFFD0A06A).withOpacity(0.4)),
-            ),
-            child: Text(
-              '+${result.xpGained} XP earned',
-              style: TextStyle(
-                fontSize: w * 0.035,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFFD0A06A),
                 decoration: TextDecoration.none,
               ),
             ),

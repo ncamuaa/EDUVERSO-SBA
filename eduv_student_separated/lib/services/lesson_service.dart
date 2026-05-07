@@ -131,20 +131,42 @@ class CompletionResult {
   final int total;
   final int xpGained;
 
+  /// questionId → correct optionId
+  /// Populated if the server returns a `correctAnswers` map in the response.
+  /// e.g. { "12": 45, "13": 47 }  →  { 12: 45, 13: 47 }
+  final Map<int, int>? correctOptionIds;
+
   const CompletionResult({
     required this.score,
     required this.correct,
     required this.total,
     required this.xpGained,
+    this.correctOptionIds,
   });
 
-  factory CompletionResult.fromJson(Map<String, dynamic> j) =>
-      CompletionResult(
-        score: j['score'] as int,
-        correct: j['correct'] as int,
-        total: j['total'] as int,
-        xpGained: j['xpGained'] as int,
-      );
+  factory CompletionResult.fromJson(Map<String, dynamic> j) {
+    // Parse correctAnswers: { "questionId": optionId }
+    Map<int, int>? correctOptionIds;
+    final raw = j['correctAnswers'];
+    if (raw is Map && raw.isNotEmpty) {
+      correctOptionIds = {};
+      raw.forEach((k, v) {
+        final questionId = int.tryParse(k.toString());
+        final optionId = v is int ? v : int.tryParse(v.toString());
+        if (questionId != null && optionId != null) {
+          correctOptionIds![questionId] = optionId;
+        }
+      });
+    }
+
+    return CompletionResult(
+      score: j['score'] as int,
+      correct: j['correct'] as int,
+      total: j['total'] as int,
+      xpGained: j['xpGained'] as int,
+      correctOptionIds: correctOptionIds,
+    );
+  }
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -179,8 +201,7 @@ class LessonService {
       Uri.parse('$_base/$lessonId/complete'),
       headers: await _headers,
       body: jsonEncode({
-        'quizAnswers': quizAnswers
-            .map((k, v) => MapEntry(k.toString(), v)),
+        'quizAnswers': quizAnswers.map((k, v) => MapEntry(k.toString(), v)),
       }),
     );
     final data = jsonDecode(res.body) as Map<String, dynamic>;
