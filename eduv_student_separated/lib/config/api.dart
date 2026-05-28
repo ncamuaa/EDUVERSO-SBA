@@ -1,1 +1,1 @@
-const String baseUrl = "https://eduverso-sba-production.up.railway.app";
+const String baseUrl = "http://localhost:5000";

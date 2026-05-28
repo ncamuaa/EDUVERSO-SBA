@@ -6,7 +6,8 @@ import '../theme/app_theme.dart';
 import '../utils/app_size.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/student_page_base.dart';
-import 'quiz_page.dart'; // 👈 import the new quiz page
+import 'quiz_page.dart';
+
 
 class LessonPage extends StatefulWidget {
   final int lessonId;
