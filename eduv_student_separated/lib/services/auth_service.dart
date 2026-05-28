@@ -3,12 +3,38 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  static const String baseUrl =
-      'https://eduverso-sba-production.up.railway.app/api/auth';
+ static const String baseUrl = 'http://127.0.0.1:5002/api/auth';
 
   static String? _cachedToken;
   static Map<String, dynamic>? _cachedUser;
 
+  // ── Register ──────────────────────────────────────────────────
+  static Future<Map<String, dynamic>> register({
+    required String fullName,
+    required String email,
+    required String password,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'fullName': fullName,
+        'email': email,
+        'password': password,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if ((response.statusCode == 200 || response.statusCode == 201) &&
+        data['success'] == true) {
+      return data;
+    } else {
+      throw Exception(data['message'] ?? 'Registration failed');
+    }
+  }
+
+  // ── Login ─────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -26,7 +52,6 @@ class AuthService {
 
     if (response.statusCode == 200 && data['success'] == true) {
       final prefs = await SharedPreferences.getInstance();
-
       await prefs.clear();
 
       _cachedToken = data['token'];
@@ -34,7 +59,6 @@ class AuthService {
 
       final profileData = await getProfile();
       _cachedUser = Map<String, dynamic>.from(profileData['user']);
-
       await prefs.setString('user', jsonEncode(_cachedUser));
 
       return profileData;
@@ -43,6 +67,7 @@ class AuthService {
     }
   }
 
+  // ── Token ─────────────────────────────────────────────────────
   static Future<String> getToken() async {
     if (_cachedToken != null && _cachedToken!.isNotEmpty) {
       return _cachedToken!;
@@ -50,11 +75,11 @@ class AuthService {
 
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
-
     _cachedToken = token;
     return token;
   }
 
+  // ── Profile (read) ────────────────────────────────────────────
   static Future<Map<String, dynamic>> getProfile() async {
     final token = await getToken();
 
@@ -70,34 +95,33 @@ class AuthService {
 
     if (response.statusCode == 200 && data['success'] == true) {
       final prefs = await SharedPreferences.getInstance();
-
       _cachedUser = Map<String, dynamic>.from(data['user']);
-
       await prefs.setString('user', jsonEncode(_cachedUser));
-
       return data;
     } else {
       throw Exception(data['message'] ?? 'Failed to load profile');
     }
   }
 
+  // ── Cached user ───────────────────────────────────────────────
   static Future<Map<String, dynamic>?> getCachedUser() async {
     if (_cachedUser != null) return _cachedUser;
 
     final prefs = await SharedPreferences.getInstance();
     final userJson = prefs.getString('user');
-
     if (userJson == null) return null;
 
     _cachedUser = Map<String, dynamic>.from(jsonDecode(userJson));
     return _cachedUser;
   }
 
+  // ── Auth check ────────────────────────────────────────────────
   static Future<bool> isLoggedIn() async {
     final token = await getToken();
     return token.isNotEmpty;
   }
 
+  // ── Logout ────────────────────────────────────────────────────
   static Future<void> logout() async {
     _cachedToken = null;
     _cachedUser = null;
@@ -106,6 +130,7 @@ class AuthService {
     await prefs.clear();
   }
 
+  // ── Update profile ────────────────────────────────────────────
   static Future<Map<String, dynamic>> updateProfile({
     required String fullName,
     String? username,
@@ -129,7 +154,6 @@ class AuthService {
     if (response.statusCode == 200 && data['success'] == true) {
       _cachedUser ??= {};
       _cachedUser!['fullName'] = fullName;
-
       if (username != null && username.isNotEmpty) {
         _cachedUser!['username'] = username;
       }
@@ -143,6 +167,7 @@ class AuthService {
     }
   }
 
+  // ── Update email ──────────────────────────────────────────────
   static Future<Map<String, dynamic>> updateEmail({
     required String email,
   }) async {
@@ -162,7 +187,6 @@ class AuthService {
     if (response.statusCode == 200 && data['success'] == true) {
       if (data['token'] != null) {
         _cachedToken = data['token'];
-
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', _cachedToken!);
       }
@@ -179,6 +203,7 @@ class AuthService {
     }
   }
 
+  // ── Update password ───────────────────────────────────────────
   static Future<Map<String, dynamic>> updatePassword({
     required String currentPassword,
     required String newPassword,
@@ -206,6 +231,7 @@ class AuthService {
     }
   }
 
+  // ── Update phone ──────────────────────────────────────────────
   static Future<Map<String, dynamic>> updatePhone({
     required String phone,
   }) async {

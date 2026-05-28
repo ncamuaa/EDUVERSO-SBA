@@ -45,7 +45,7 @@ class AnnouncementResult {
 
 class AnnouncementService {
   static const String _base =
-      'https://eduverso-sba-production.up.railway.app/api/announcements';
+    'http://localhost:5002/api/announcements';
 
   static Future<Map<String, String>> get _headers async => {
         'Content-Type': 'application/json',

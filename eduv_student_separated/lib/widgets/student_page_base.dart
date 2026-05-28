@@ -22,18 +22,31 @@ class StudentPageBase extends StatelessWidget {
                   if (showBack)
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
-                      child: const Text('← Back', style: TextStyle(fontSize: 22, color: Colors.white, decoration: TextDecoration.none)),
+                      child: const Text(
+                        '← Back',
+                        style: TextStyle(
+                          fontSize: 16, // ← was 22
+                          color: Colors.white,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
                     )
                   else
-                    const SizedBox(width: 76),
+                    const SizedBox(width: 60), // ← was 76
                   Expanded(
                     child: Text(
                       title,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white, decoration: TextDecoration.none),
+                      overflow: TextOverflow.ellipsis, // ← added
+                      style: const TextStyle(
+                        fontSize: 20, // ← was 28
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        decoration: TextDecoration.none,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 76),
+                  const SizedBox(width: 60), // ← was 76
                 ],
               ),
             ),

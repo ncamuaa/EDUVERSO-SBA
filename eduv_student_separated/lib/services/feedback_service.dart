@@ -34,7 +34,7 @@ class FeedbackItem {
 
 class FeedbackService {
   static const String _base =
-      'https://eduverso-sba-production.up.railway.app/api/feedback';
+    'http://localhost:5002/api/feedback';
 
   static Future<Map<String, String>> get _headers async => {
         'Content-Type': 'application/json',

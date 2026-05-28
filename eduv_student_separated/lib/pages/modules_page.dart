@@ -542,8 +542,8 @@ class _ModuleCard extends StatelessWidget {
       final token = await AuthService.getToken();
       final res = await http.get(
         Uri.parse(
-          'https://eduverso-sba-production.up.railway.app/api/lessons/module/${module.id}',
-        ),
+  'http://localhost:5002/api/lessons/module/${module.id}',
+),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

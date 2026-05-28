@@ -173,7 +173,7 @@ class CompletionResult {
 
 class LessonService {
   static const String _base =
-      'https://eduverso-sba-production.up.railway.app/api/lessons';
+      'http://localhost:5002';
 
   static Future<Map<String, String>> get _headers async => {
         'Content-Type': 'application/json',

@@ -52,7 +52,7 @@ class ModulesResponse {
 
 class ModulesService {
   static const String _base =
-      'https://eduverso-sba-production.up.railway.app/api/modules';
+      'http://localhost:5002';
 
   /// Fetch modules with optional filters.
   /// Pass null to omit a filter (returns all values for that dimension).
