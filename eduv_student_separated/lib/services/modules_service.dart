@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
-
-// ── Data models ───────────────────────────────────────────────────────────────
+import '../config/api_config.dart';
 
 class Module {
   final int id;
@@ -48,14 +47,9 @@ class ModulesResponse {
   });
 }
 
-// ── Service ───────────────────────────────────────────────────────────────────
-
 class ModulesService {
-  static const String _base =
-      'http://localhost:5002';
+  static const String _base = '${ApiConfig.baseUrl}/api/modules';
 
-  /// Fetch modules with optional filters.
-  /// Pass null to omit a filter (returns all values for that dimension).
   static Future<ModulesResponse> getModules({
     String? subject,
     String? grade,
@@ -63,13 +57,14 @@ class ModulesService {
   }) async {
     final token = await AuthService.getToken();
 
-    // Build query string only for non-null filters
     final params = <String, String>{};
     if (subject != null) params['subject'] = subject;
     if (grade != null) params['grade'] = grade;
     if (course != null) params['course'] = course;
 
-    final uri = Uri.parse(_base).replace(queryParameters: params);
+    final uri = Uri.parse(_base).replace(queryParameters: params.isEmpty ? null : params); // 👈 fixed
+
+    print('[ModulesService] GET $uri'); // 👈 debug
 
     final response = await http.get(
       uri,
@@ -78,6 +73,9 @@ class ModulesService {
         'Authorization': 'Bearer $token',
       },
     );
+
+    print('[ModulesService] status: ${response.statusCode}'); // 👈 debug
+    print('[ModulesService] body: ${response.body}');         // 👈 debug
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
 

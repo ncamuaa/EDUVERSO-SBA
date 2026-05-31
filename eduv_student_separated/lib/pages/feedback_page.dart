@@ -19,6 +19,7 @@ class PeerFeedbackPage extends StatefulWidget {
 class _PeerFeedbackPageState extends State<PeerFeedbackPage> {
   List<FeedbackItem> _feedbackList = [];
   bool _loading = true;
+  String? _error;
   String _search = '';
 
   @override
@@ -28,7 +29,10 @@ class _PeerFeedbackPageState extends State<PeerFeedbackPage> {
   }
 
   Future<void> _loadFeedback() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final data = await FeedbackService.getFeedback(
         userId: widget.userId,
@@ -37,6 +41,7 @@ class _PeerFeedbackPageState extends State<PeerFeedbackPage> {
       setState(() => _feedbackList = data);
     } catch (e) {
       debugPrint('Error loading feedback: $e');
+      setState(() => _error = e.toString());
     } finally {
       setState(() => _loading = false);
     }
@@ -52,121 +57,160 @@ class _PeerFeedbackPageState extends State<PeerFeedbackPage> {
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFFA56BFF)),
             )
-          : ListView(
-              padding: EdgeInsets.fromLTRB(w * 0.045, 12, w * 0.045, 18),
-              children: [
-                Row(
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Error: $_error',
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: w * 0.032,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              : ListView(
+                  padding: EdgeInsets.fromLTRB(w * 0.04, 10, w * 0.04, 16),
                   children: [
-                    const Spacer(),
-                    SizedBox(
-                      width: w * 0.52,
-                      height: w * 0.12,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(.12),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        padding: EdgeInsets.symmetric(horizontal: w * 0.035),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                style: TextStyle(
-                                  fontSize: w * 0.04,
-                                  color: Colors.white,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Search',
-                                  hintStyle: TextStyle(
-                                    fontSize: w * 0.04,
-                                    color: Colors.white70,
-                                  ),
-                                  border: InputBorder.none,
-                                ),
-                                onChanged: (val) {
-                                  _search = val;
-                                  _loadFeedback();
-                                },
+                    // Search bar — full width
+                    Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(horizontal: w * 0.03),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.search,
+                            color: Colors.white54,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Colors.white,
                               ),
+                              decoration: const InputDecoration(
+                                hintText: 'Search feedback...',
+                                hintStyle: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.white54,
+                                ),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              onChanged: (val) {
+                                _search = val;
+                                _loadFeedback();
+                              },
                             ),
-                            Icon(
-                              Icons.search,
-                              color: Colors.white70,
-                              size: w * 0.05,
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-                SizedBox(height: w * 0.035),
-                if (_feedbackList.isEmpty && !_loading)
-                  Center(
-                    child: Padding(
-                      padding: EdgeInsets.only(top: w * 0.2),
-                      child: Text(
-                        'No feedback yet.',
-                        style: TextStyle(
-                          fontSize: w * 0.04,
-                          color: Colors.white38,
+
+                    const SizedBox(height: 12),
+
+                    if (_feedbackList.isEmpty && !_loading)
+                      Center(
+                        child: Padding(
+                          padding: EdgeInsets.only(top: w * 0.2),
+                          child: const Text(
+                            'No feedback yet.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white38,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  )
-                else
-                  ..._feedbackList.map(
-                    (item) => Padding(
-                      padding: EdgeInsets.only(bottom: w * 0.04),
-                      child: appCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                      )
+                    else
+                      ..._feedbackList.map(
+                        (item) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: appCard(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Flexible(child: pill(item.category)),
-                                const Spacer(),
+                                // Category pill + date
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        item.category,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      _formatDate(item.createdAt),
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white54,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 10),
+
+                                // Title
                                 Text(
-                                  _formatDate(item.createdAt),
-                                  style: TextStyle(
-                                    fontSize: w * 0.035,
+                                  item.title,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    height: 1.2,
+                                  ),
+                                ),
+
+                                const SizedBox(height: 6),
+
+                                // Body
+                                Text(
+                                  item.body,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    height: 1.4,
                                     color: Colors.white70,
                                   ),
+                                ),
+
+                                const SizedBox(height: 10),
+
+                                // Stars
+                                Text(
+                                  '⭐' * item.rating,
+                                  style: const TextStyle(fontSize: 14),
                                 ),
                               ],
                             ),
-                            SizedBox(height: w * 0.04),
-                            Text(
-                              item.title,
-                              style: TextStyle(
-                                fontSize: w * 0.055,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                height: 1.2,
-                              ),
-                            ),
-                            SizedBox(height: w * 0.03),
-                            Text(
-                              item.body,
-                              style: TextStyle(
-                                fontSize: w * 0.04,
-                                height: 1.45,
-                                color: Colors.white70,
-                              ),
-                            ),
-                            SizedBox(height: w * 0.035),
-                            Text(
-                              '⭐' * item.rating,
-                              style: TextStyle(fontSize: w * 0.065),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-              ],
-            ),
+                  ],
+                ),
     );
   }
 

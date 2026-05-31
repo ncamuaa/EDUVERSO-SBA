@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/game_progress_service.dart';
+import '../utils/xp_history.dart';
 
 class QuizPage extends StatefulWidget {
   final int lessonId;
@@ -59,6 +60,13 @@ class _QuizPageState extends State<QuizPage> {
 
       await GameProgressService.addXp(xpEarned);
       await GameProgressService.saveBestScore(percent);
+
+       if (xpEarned > 0) {
+        await XpHistory.addEntry(
+          xp: xpEarned,
+          reason: 'Quiz: ${widget.lessonTitle} ($score/${questions.length} correct)',
+        );
+      }
 
       setState(() {
         finished = true;

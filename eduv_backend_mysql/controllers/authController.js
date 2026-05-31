@@ -4,15 +4,9 @@ const pool = require('../config/db');
 
 function generateToken(user) {
   return jwt.sign(
-    {
-      id: user.id,
-      email: user.email,
-      fullName: user.full_name,
-    },
+    { id: user.id, email: user.email, fullName: user.full_name },
     process.env.JWT_SECRET,
-    {
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-    }
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 }
 
@@ -26,323 +20,151 @@ function computeLevel(xp) {
 exports.register = async (req, res, next) => {
   try {
     const { fullName, email, password } = req.body;
-
     if (!fullName || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Full name, email, and password are required.',
-      });
+      return res.status(400).json({ success: false, message: 'Full name, email, and password are required.' });
     }
-
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    const [result] = await pool.execute(
+    const result = await pool.query(
       `INSERT INTO users (full_name, email, password, xp, level, streak, last_login)
-       VALUES (?, ?, ?, 0, 1, 0, NULL)`,
+       VALUES ($1, $2, $3, 0, 1, 0, NULL) RETURNING id`,
       [fullName, email, hashedPassword]
     );
-
-    const user = {
-      id: result.insertId,
-      full_name: fullName,
-      email,
-    };
-
+    const user = { id: result.rows[0].id, full_name: fullName, email };
     return res.status(201).json({
-      success: true,
-      message: 'User registered successfully.',
+      success: true, message: 'User registered successfully.',
       token: generateToken(user),
-      user: {
-        id: user.id,
-        fullName: user.full_name,
-        email: user.email,
-      },
+      user: { id: user.id, fullName: user.full_name, email: user.email },
     });
-  } catch (error) {
-    next(error);
-  }
+  } catch (error) { next(error); }
 };
 
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-
-    const [users] = await pool.execute(
-      `SELECT id, full_name, email, password, xp, level, streak, last_login
-       FROM users
-       WHERE email = ?
-       LIMIT 1`,
+    const result = await pool.query(
+      `SELECT id, full_name, email, password, xp, level, streak, last_login FROM users WHERE email = $1 LIMIT 1`,
       [email]
     );
-
-    if (users.length === 0) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password.',
-      });
+    if (result.rows.length === 0) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
     }
-
-    const user = users[0];
+    const user = result.rows[0];
     const passwordMatch = await bcrypt.compare(password, user.password);
-
     if (!passwordMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password.',
-      });
+      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
     }
-
     const today = new Date().toISOString().split('T')[0];
-    const lastLogin = user.last_login
-      ? new Date(user.last_login).toISOString().split('T')[0]
-      : null;
-
+    const lastLogin = user.last_login ? new Date(user.last_login).toISOString().split('T')[0] : null;
     let newStreak = user.streak;
     let newXp = user.xp;
-
     if (lastLogin !== today) {
       newXp += 10;
-
-      if (lastLogin === null) {
-        newStreak = 1;
-      } else {
-        const diffDays =
-          (new Date(today) - new Date(lastLogin)) / (1000 * 60 * 60 * 24);
-
-        if (diffDays === 1) {
-          newStreak += 1;
-        } else if (diffDays > 1) {
-          newStreak = 1;
-        }
+      if (lastLogin === null) { newStreak = 1; }
+      else {
+        const diffDays = (new Date(today) - new Date(lastLogin)) / (1000 * 60 * 60 * 24);
+        if (diffDays === 1) { newStreak += 1; } else if (diffDays > 1) { newStreak = 1; }
       }
-
       const { level: newLevel } = computeLevel(newXp);
-
-      await pool.execute(
-        `UPDATE users SET xp = ?, level = ?, streak = ?, last_login = ? WHERE id = ?`,
+      await pool.query(
+        `UPDATE users SET xp = $1, level = $2, streak = $3, last_login = $4 WHERE id = $5`,
         [newXp, newLevel, newStreak, today, user.id]
       );
     }
-
     const { level, xpInLevel, progress } = computeLevel(newXp);
-
     return res.status(200).json({
-      success: true,
-      message: 'Login successful.',
+      success: true, message: 'Login successful.',
       token: generateToken(user),
-      user: {
-        id: user.id,
-        fullName: user.full_name,
-        email: user.email,
-        xp: newXp,
-        xpInLevel,
-        level,
-        progress,
-        streak: newStreak,
-      },
+      user: { id: user.id, fullName: user.full_name, email: user.email, xp: newXp, xpInLevel, level, progress, streak: newStreak },
     });
-  } catch (error) {
-    next(error);
-  }
+  } catch (error) { next(error); }
 };
 
 exports.profile = async (req, res, next) => {
   try {
-    const [users] = await pool.execute(
-      `SELECT id, full_name, email, xp, level, streak, created_at
-       FROM users
-       WHERE id = ?
-       LIMIT 1`,
+    const result = await pool.query(
+      `SELECT id, full_name, email, xp, level, streak, profile_image, course, section, created_at FROM users WHERE id = $1 LIMIT 1`,
       [req.user.id]
     );
-
-    if (users.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found.',
-      });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
     }
-
-    const user = users[0];
+    const user = result.rows[0];
     const { level, xpInLevel, progress } = computeLevel(user.xp);
-
     return res.status(200).json({
       success: true,
-      user: {
-        id: user.id,
-        fullName: user.full_name,
-        email: user.email,
-        xp: user.xp,
-        xpInLevel,
-        level,
-        progress,
-        streak: user.streak,
-        createdAt: user.created_at,
-      },
+      user: { id: user.id, fullName: user.full_name, email: user.email, xp: user.xp, xpInLevel, level, progress, streak: user.streak, profileImage: user.profile_image, course: user.course, section: user.section, createdAt: user.created_at },
     });
-  } catch (error) {
-    next(error);
-  }
+  } catch (error) { next(error); }
 };
 
-// PUT /api/auth/profile
-// Updates full_name (and optionally username) for the logged-in user.
 exports.updateProfile = async (req, res, next) => {
   try {
     const { fullName, username } = req.body;
-
     if (!fullName || fullName.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        message: 'Full name is required.',
-      });
+      return res.status(400).json({ success: false, message: 'Full name is required.' });
     }
-
-    // If your users table has a username column, include it; otherwise omit.
-    await pool.execute(
-      `UPDATE users SET full_name = ? WHERE id = ?`,
-      [fullName.trim(), req.user.id]
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: 'Profile updated successfully.',
-      user: {
-        fullName: fullName.trim(),
-        username: username?.trim() ?? null,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
+    await pool.query(`UPDATE users SET full_name = $1 WHERE id = $2`, [fullName.trim(), req.user.id]);
+    return res.status(200).json({ success: true, message: 'Profile updated successfully.', user: { fullName: fullName.trim(), username: username?.trim() ?? null } });
+  } catch (error) { next(error); }
 };
 
-// PUT /api/auth/email
-// Updates the email for the logged-in user.
 exports.updateEmail = async (req, res, next) => {
   try {
     const { email } = req.body;
-
     if (!email || !email.includes('@')) {
-      return res.status(400).json({
-        success: false,
-        message: 'A valid email address is required.',
-      });
+      return res.status(400).json({ success: false, message: 'A valid email address is required.' });
     }
-
-    // Check if email is already taken by another user.
-    const [existing] = await pool.execute(
-      `SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1`,
-      [email.trim(), req.user.id]
-    );
-
-    if (existing.length > 0) {
-      return res.status(409).json({
-        success: false,
-        message: 'This email is already in use.',
-      });
+    const existing = await pool.query(`SELECT id FROM users WHERE email = $1 AND id != $2 LIMIT 1`, [email.trim(), req.user.id]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ success: false, message: 'This email is already in use.' });
     }
-
-    await pool.execute(
-      `UPDATE users SET email = ? WHERE id = ?`,
-      [email.trim(), req.user.id]
-    );
-
-    // Re-issue token so the new email is reflected in future requests.
+    await pool.query(`UPDATE users SET email = $1 WHERE id = $2`, [email.trim(), req.user.id]);
     const newToken = jwt.sign(
       { id: req.user.id, email: email.trim(), fullName: req.user.fullName },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
-
-    return res.status(200).json({
-      success: true,
-      message: 'Email updated successfully.',
-      token: newToken,
-      email: email.trim(),
-    });
-  } catch (error) {
-    next(error);
-  }
+    return res.status(200).json({ success: true, message: 'Email updated successfully.', token: newToken, email: email.trim() });
+  } catch (error) { next(error); }
 };
 
-// PUT /api/auth/password
-// Verifies the current password then sets a new one.
 exports.updatePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
-
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Current password and new password are required.',
-      });
+      return res.status(400).json({ success: false, message: 'Current password and new password are required.' });
     }
-
     if (newPassword.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: 'New password must be at least 8 characters.',
-      });
+      return res.status(400).json({ success: false, message: 'New password must be at least 8 characters.' });
     }
-
-    const [users] = await pool.execute(
-      `SELECT password FROM users WHERE id = ? LIMIT 1`,
-      [req.user.id]
-    );
-
-    if (users.length === 0) {
+    const result = await pool.query(`SELECT password FROM users WHERE id = $1 LIMIT 1`, [req.user.id]);
+    if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
-
-    const match = await bcrypt.compare(currentPassword, users[0].password);
+    const match = await bcrypt.compare(currentPassword, result.rows[0].password);
     if (!match) {
-      return res.status(401).json({
-        success: false,
-        message: 'Current password is incorrect.',
-      });
+      return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
     }
-
     const hashed = await bcrypt.hash(newPassword, 10);
-    await pool.execute(
-      `UPDATE users SET password = ? WHERE id = ?`,
-      [hashed, req.user.id]
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: 'Password updated successfully.',
-    });
-  } catch (error) {
-    next(error);
-  }
+    await pool.query(`UPDATE users SET password = $1 WHERE id = $2`, [hashed, req.user.id]);
+    return res.status(200).json({ success: true, message: 'Password updated successfully.' });
+  } catch (error) { next(error); }
 };
 
-// PUT /api/auth/phone
-// Saves or updates the phone number for the logged-in user.
-// Requires a `phone` VARCHAR column on the users table.
 exports.updatePhone = async (req, res, next) => {
   try {
     const { phone } = req.body;
-
     if (!phone || phone.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        message: 'Phone number is required.',
-      });
+      return res.status(400).json({ success: false, message: 'Phone number is required.' });
     }
+    await pool.query(`UPDATE users SET phone = $1 WHERE id = $2`, [phone.trim(), req.user.id]);
+    return res.status(200).json({ success: true, message: 'Phone number updated successfully.', phone: phone.trim() });
+  } catch (error) { next(error); }
+};
 
-    await pool.execute(
-      `UPDATE users SET phone = ? WHERE id = ?`,
-      [phone.trim(), req.user.id]
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: 'Phone number updated successfully.',
-      phone: phone.trim(),
-    });
-  } catch (error) {
-    next(error);
-  }
+exports.updateProfileImage = async (req, res, next) => {
+  try {
+    const { profileImage } = req.body;
+    await pool.query(`UPDATE users SET profile_image = $1 WHERE id = $2`, [profileImage, req.user.id]);
+    return res.status(200).json({ success: true, message: 'Profile image updated successfully.', profileImage });
+  } catch (error) { next(error); }
 };

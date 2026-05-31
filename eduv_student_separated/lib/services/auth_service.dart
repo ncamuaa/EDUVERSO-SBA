@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
- static const String baseUrl = 'http://127.0.0.1:5002/api/auth';
+  static const String baseUrl = 'http://192.168.100.16:5002/api/auth';
 
   static String? _cachedToken;
   static Map<String, dynamic>? _cachedUser;
@@ -42,17 +42,18 @@ class AuthService {
     final response = await http.post(
       Uri.parse('$baseUrl/login'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-      }),
+      body: jsonEncode({'email': email, 'password': password}),
     );
 
     final data = jsonDecode(response.body);
 
     if (response.statusCode == 200 && data['success'] == true) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
+
+      // ✅ Only clear auth keys — preserve last_module_* and other app data
+      await prefs.remove('token');
+      await prefs.remove('user');
+      await prefs.remove('profile_image_base64');
 
       _cachedToken = data['token'];
       await prefs.setString('token', _cachedToken!);
@@ -127,7 +128,12 @@ class AuthService {
     _cachedUser = null;
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+
+    // ✅ Only clear auth keys — last_module_* keys are preserved
+    // so the dashboard still shows the last opened module after re-login
+    await prefs.remove('token');
+    await prefs.remove('user');
+    await prefs.remove('profile_image_base64');
   }
 
   // ── Update profile ────────────────────────────────────────────

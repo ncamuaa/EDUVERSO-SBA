@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
+import '../config/api_config.dart';
 
 class FeedbackItem {
   final int id;
@@ -33,9 +34,9 @@ class FeedbackItem {
 }
 
 class FeedbackService {
-  static const String _base =
-    'http://localhost:5002/api/feedback';
-
+  // Flutter Web uses localhost directly
+  static const String _base = '${ApiConfig.baseUrl}/api/feedback';
+  
   static Future<Map<String, String>> get _headers async => {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ${await AuthService.getToken()}',
@@ -48,7 +49,14 @@ class FeedbackService {
     final uri = Uri.parse(
       '$_base/$userId${search != null && search.isNotEmpty ? '?search=$search' : ''}',
     );
+
+    print('[FeedbackService] GET $uri'); // 👈 debug
+
     final res = await http.get(uri, headers: await _headers);
+
+    print('[FeedbackService] status: ${res.statusCode}'); // 👈 debug
+    print('[FeedbackService] body: ${res.body}');         // 👈 debug
+
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     if (res.statusCode == 200 && data['success'] == true) {
       return (data['data'] as List)

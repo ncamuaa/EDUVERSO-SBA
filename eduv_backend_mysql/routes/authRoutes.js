@@ -1,4 +1,5 @@
 const express = require('express');
+
 const {
   register,
   login,
@@ -7,6 +8,7 @@ const {
   updateEmail,
   updatePassword,
   updatePhone,
+  updateProfileImage,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -21,6 +23,7 @@ router.get('/profile', protect, profile);
 
 // ── Settings (write) — all require a valid JWT ─────────────────
 router.put('/profile',  protect, updateProfile);
+router.put('/profile-image', protect, updateProfileImage);
 router.put('/email',    protect, updateEmail);
 router.put('/password', protect, updatePassword);
 router.put('/phone',    protect, updatePhone);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_service.dart';
 import '../utils/app_size.dart';
@@ -14,48 +15,50 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   // ── Preferences ───────────────────────────────────────────────────────────
-  bool notifications = true;
-  bool sound = true;
-  bool reducedMotion = false;
-  bool darkMode = true;
-  bool twoFactor = false;
-  bool showActivity = true;
-  int accentIndex = 1;
+  bool notifications  = true;
+  bool sound          = true;
+  bool reducedMotion  = false;
+  bool twoFactor      = false;
+  bool showActivity   = true;
+  int  accentIndex    = 1;
+
+  /// True while preferences are still loading from disk (prevents a flicker).
+  bool _prefsLoading = true;
 
   // ── Expandable flags ──────────────────────────────────────────────────────
-  bool _profileOpen = false;
-  bool _emailOpen = false;
+  bool _profileOpen  = false;
+  bool _emailOpen    = false;
   bool _passwordOpen = false;
-  bool _phoneOpen = false;
+  bool _phoneOpen    = false;
 
   // ── Loading flags (one per section) ──────────────────────────────────────
-  bool _loadingProfile = false;
-  bool _loadingEmail = false;
+  bool _loadingProfile  = false;
+  bool _loadingEmail    = false;
   bool _loadingPassword = false;
-  bool _loadingPhone = false;
+  bool _loadingPhone    = false;
 
   // ── Controllers ───────────────────────────────────────────────────────────
-  final _firstNameCtrl = TextEditingController();
-  final _lastNameCtrl = TextEditingController();
-  final _usernameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _oldPwCtrl = TextEditingController();
-  final _newPwCtrl = TextEditingController();
-  final _confirmPwCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
+  final _firstNameCtrl  = TextEditingController();
+  final _lastNameCtrl   = TextEditingController();
+  final _usernameCtrl   = TextEditingController();
+  final _emailCtrl      = TextEditingController();
+  final _oldPwCtrl      = TextEditingController();
+  final _newPwCtrl      = TextEditingController();
+  final _confirmPwCtrl  = TextEditingController();
+  final _phoneCtrl      = TextEditingController();
 
   // ── Display state (shown in the UI) ──────────────────────────────────────
-  String _displayName = '';
+  String _displayName  = '';
   String _displayEmail = '';
   String _displayPhone = 'Not set';
-  String _pwStrength = '';
+  String _pwStrength   = '';
 
   // ── Password visibility ───────────────────────────────────────────────────
-  bool _showOldPw = false;
-  bool _showNewPw = false;
+  bool _showOldPw     = false;
+  bool _showNewPw     = false;
   bool _showConfirmPw = false;
 
-  final _accents = const [
+  static const _accents = [
     Color(0xFF6B8FFF),
     Color(0xFFA56BFF),
     Color(0xFFD0A06A),
@@ -71,7 +74,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
-    _loadCachedUser(); // instant — no spinner needed
+    _loadAll();
   }
 
   @override
@@ -91,24 +94,64 @@ class _SettingsPageState extends State<SettingsPage> {
   // Data loading
   // ─────────────────────────────────────────────────────────────────────────
 
-  /// Fills the UI from SharedPreferences cache — zero latency.
+  /// Loads user profile AND persisted preferences in parallel.
+  Future<void> _loadAll() async {
+    await Future.wait([
+      _loadCachedUser(),
+      _loadPreferences(),
+    ]);
+    if (mounted) setState(() => _prefsLoading = false);
+  }
+
   Future<void> _loadCachedUser() async {
     final user = await AuthService.getCachedUser();
     if (user == null || !mounted) return;
 
     final fullName = user['fullName'] as String? ?? '';
-    final parts = fullName.trim().split(' ');
+    final parts    = fullName.trim().split(' ');
 
     setState(() {
-      _displayName = fullName;
+      _displayName  = fullName;
       _displayEmail = user['email'] as String? ?? '';
-      _displayPhone = user['phone'] as String? ?? 'Not set';
+      _displayPhone = (user['phone'] as String?)?.isNotEmpty == true
+          ? user['phone'] as String
+          : 'Not set';
       _firstNameCtrl.text = parts.isNotEmpty ? parts[0] : '';
-      _lastNameCtrl.text =
+      _lastNameCtrl.text  =
           parts.length > 1 ? parts.sublist(1).join(' ') : '';
-      _usernameCtrl.text = user['username'] as String? ?? '';
+      _usernameCtrl.text  = user['username'] as String? ?? '';
     });
   }
+
+  Future<void> _loadPreferences() async {
+    final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      notifications = p.getBool('pref_notifications') ?? true;
+      sound         = p.getBool('pref_sound')         ?? true;
+      reducedMotion = p.getBool('pref_reduced_motion') ?? false;
+      twoFactor     = p.getBool('pref_two_factor')     ?? false;
+      showActivity  = p.getBool('pref_show_activity')  ?? true;
+      accentIndex   = p.getInt('pref_accent_index')    ?? 1;
+    });
+  }
+
+  Future<void> _savePref(String key, dynamic value) async {
+    final p = await SharedPreferences.getInstance();
+    if (value is bool) p.setBool(key, value);
+    if (value is int)  p.setInt(key, value);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Preference setters — update state + persist immediately
+  // ─────────────────────────────────────────────────────────────────────────
+
+  void _setNotifications(bool v) { setState(() => notifications = v); _savePref('pref_notifications', v); }
+  void _setSound(bool v)         { setState(() => sound = v);         _savePref('pref_sound', v); }
+  void _setReducedMotion(bool v) { setState(() => reducedMotion = v); _savePref('pref_reduced_motion', v); }
+  void _setTwoFactor(bool v)     { setState(() => twoFactor = v);     _savePref('pref_two_factor', v); }
+  void _setShowActivity(bool v)  { setState(() => showActivity = v);  _savePref('pref_show_activity', v); }
+  void _setAccentIndex(int i)    { setState(() => accentIndex = i);   _savePref('pref_accent_index', i); }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Helpers
@@ -119,9 +162,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _initials(String name) {
     final parts = name.trim().split(' ');
     if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    if (parts.isNotEmpty && parts[0].isNotEmpty) {
-      return parts[0][0].toUpperCase();
-    }
+    if (parts.isNotEmpty && parts[0].isNotEmpty) return parts[0][0].toUpperCase();
     return '?';
   }
 
@@ -148,8 +189,8 @@ class _SettingsPageState extends State<SettingsPage> {
         backgroundColor:
             isError ? const Color(0xFFFF5F7E) : const Color(0xFF4ECA8D),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -229,7 +270,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _newPwCtrl.clear();
       _confirmPwCtrl.clear();
       setState(() {
-        _pwStrength = '';
+        _pwStrength   = '';
         _passwordOpen = false;
       });
       _toast('Password updated!');
@@ -264,6 +305,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _logout() async {
     await AuthService.logout();
+    // Optionally clear prefs on logout: (await SharedPreferences.getInstance()).clear();
     if (!mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
   }
@@ -276,6 +318,17 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final w = AppSize.w(context);
 
+    // Show a full-page loader while prefs are hydrating so the switches
+    // never flicker to their defaults and back.
+    if (_prefsLoading) {
+      return StudentPageBase(
+        title: 'Settings',
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.white54),
+        ),
+      );
+    }
+
     return StudentPageBase(
       title: 'Settings',
       child: ListView(
@@ -287,17 +340,14 @@ class _SettingsPageState extends State<SettingsPage> {
             child: Column(
               children: [
                 GestureDetector(
-                  onTap: () =>
-                      setState(() => _profileOpen = !_profileOpen),
+                  onTap: () => setState(() => _profileOpen = !_profileOpen),
                   child: Row(
                     children: [
                       CircleAvatar(
                         radius: w * 0.06,
                         backgroundColor: _accentColor.withOpacity(0.3),
                         child: Text(
-                          _displayName.isEmpty
-                              ? '?'
-                              : _initials(_displayName),
+                          _displayName.isEmpty ? '?' : _initials(_displayName),
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
@@ -371,8 +421,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ? 'your@email.com'
                       : _displayEmail,
                   isOpen: _emailOpen,
-                  onTap: () =>
-                      setState(() => _emailOpen = !_emailOpen),
+                  onTap: () => setState(() => _emailOpen = !_emailOpen),
                   expandedChild: Column(
                     children: [
                       SizedBox(height: w * 0.03),
@@ -402,8 +451,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         'Current password',
                         _oldPwCtrl,
                         _showOldPw,
-                        () => setState(
-                            () => _showOldPw = !_showOldPw),
+                        () => setState(() => _showOldPw = !_showOldPw),
                         w,
                       ),
                       SizedBox(height: w * 0.025),
@@ -411,8 +459,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         'New password',
                         _newPwCtrl,
                         _showNewPw,
-                        () => setState(
-                            () => _showNewPw = !_showNewPw),
+                        () => setState(() => _showNewPw = !_showNewPw),
                         w,
                         onChanged: _checkPwStrength,
                       ),
@@ -457,8 +504,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   title: 'Phone Number',
                   subtitle: _displayPhone,
                   isOpen: _phoneOpen,
-                  onTap: () =>
-                      setState(() => _phoneOpen = !_phoneOpen),
+                  onTap: () => setState(() => _phoneOpen = !_phoneOpen),
                   expandedChild: Column(
                     children: [
                       SizedBox(height: w * 0.03),
@@ -483,7 +529,7 @@ class _SettingsPageState extends State<SettingsPage> {
             'Notifications',
             'Enable reminders',
             notifications,
-            (v) => setState(() => notifications = v),
+            _setNotifications, // ← persisted
             w,
           ),
           SizedBox(height: w * 0.03),
@@ -492,7 +538,7 @@ class _SettingsPageState extends State<SettingsPage> {
             'Sound',
             'UI click sounds',
             sound,
-            (v) => setState(() => sound = v),
+            _setSound, // ← persisted
             w,
           ),
           SizedBox(height: w * 0.03),
@@ -501,19 +547,9 @@ class _SettingsPageState extends State<SettingsPage> {
             'Reduced Motion',
             'Less animations',
             reducedMotion,
-            (v) => setState(() => reducedMotion = v),
+            _setReducedMotion, // ← persisted
             w,
           ),
-          SizedBox(height: w * 0.03),
-          _switchCard(
-            Icons.dark_mode_outlined,
-            'Dark Mode',
-            'Switch theme',
-            darkMode,
-            (v) => setState(() => darkMode = v),
-            w,
-          ),
-          SizedBox(height: w * 0.03),
 
           // ── APPEARANCE ────────────────────────────────────────────────────
           _sectionLabel('Appearance', w),
@@ -535,7 +571,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   runSpacing: w * 0.03,
                   children: List.generate(_accents.length, (i) {
                     return GestureDetector(
-                      onTap: () => setState(() => accentIndex = i),
+                      onTap: () => _setAccentIndex(i), // ← persisted
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         width: w * 0.09,
@@ -578,7 +614,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   'Two-Factor Auth',
                   'Extra login security',
                   twoFactor,
-                  (v) => setState(() => twoFactor = v),
+                  _setTwoFactor, // ← persisted
                   w,
                 ),
                 _divider(),
@@ -587,7 +623,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   'Show Activity',
                   'Let others see online status',
                   showActivity,
-                  (v) => setState(() => showActivity = v),
+                  _setShowActivity, // ← persisted
                   w,
                 ),
               ],
@@ -635,7 +671,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Reusable widgets
+  // Reusable widgets  (unchanged from original)
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _sectionLabel(String label, double w) => Padding(
@@ -786,22 +822,18 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: w * 0.04,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
+                        Text(title,
+                            style: TextStyle(
+                              fontSize: w * 0.04,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            )),
                         SizedBox(height: w * 0.005),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                              fontSize: w * 0.032,
-                              color: Colors.white54),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        Text(subtitle,
+                            style: TextStyle(
+                                fontSize: w * 0.032,
+                                color: Colors.white54),
+                            overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   ),
@@ -852,8 +884,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   SizedBox(height: w * 0.01),
                   Text(subtitle,
                       style: TextStyle(
-                          fontSize: w * 0.033,
-                          color: Colors.white70)),
+                          fontSize: w * 0.033, color: Colors.white70)),
                 ],
               ),
             ),
@@ -896,8 +927,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   SizedBox(height: w * 0.005),
                   Text(subtitle,
                       style: TextStyle(
-                          fontSize: w * 0.032,
-                          color: Colors.white54)),
+                          fontSize: w * 0.032, color: Colors.white54)),
                 ],
               ),
             ),
@@ -928,18 +958,15 @@ class _SettingsPageState extends State<SettingsPage> {
           padding: EdgeInsets.symmetric(vertical: w * 0.02),
           child: Row(
             children: [
-              Icon(icon,
-                  color: color.withOpacity(0.8), size: w * 0.055),
+              Icon(icon, color: color.withOpacity(0.8), size: w * 0.055),
               SizedBox(width: w * 0.03),
               Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: w * 0.04,
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                  ),
-                ),
+                child: Text(title,
+                    style: TextStyle(
+                      fontSize: w * 0.04,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    )),
               ),
               Icon(Icons.chevron_right_rounded,
                   color: color.withOpacity(0.5), size: w * 0.05),
@@ -958,14 +985,13 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1A1650),
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(title,
             style: const TextStyle(
                 color: Colors.white, fontWeight: FontWeight.w800)),
         content: Text(message,
-            style:
-                const TextStyle(color: Colors.white70, fontSize: 14)),
+            style: const TextStyle(color: Colors.white70, fontSize: 14)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),

@@ -1,237 +1,124 @@
 const pool = require('../config/db');
-const Anthropic = require('@anthropic-ai/sdk');
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-// =============================================================
-// GET /api/lessons/module/:moduleId
-// =============================================================
 exports.getLessonsByModule = async (req, res, next) => {
   try {
     const { moduleId } = req.params;
-
-    const [lessons] = await pool.execute(
+    const result = await pool.query(
       `SELECT l.id, l.title, l.order_index,
-              CASE WHEN up.completed = 1 THEN 1 ELSE 0 END AS completed
+              CASE WHEN up.completed = TRUE THEN 1 ELSE 0 END AS completed
        FROM lessons l
-       LEFT JOIN user_progress up
-         ON up.lesson_id = l.id AND up.user_id = ?
-       WHERE l.module_id = ?
+       LEFT JOIN user_progress up ON up.lesson_id = l.id AND up.user_id = $1
+       WHERE l.module_id = $2
        ORDER BY l.order_index ASC`,
       [req.user.id, moduleId]
     );
-
-    return res.status(200).json({ success: true, lessons });
-  } catch (error) {
-    next(error);
-  }
+    return res.status(200).json({ success: true, lessons: result.rows });
+  } catch (error) { next(error); }
 };
 
-// =============================================================
-// GET /api/lessons/:id
-// =============================================================
 exports.getLessonById = async (req, res, next) => {
   try {
     const lessonId = req.params.id;
-
-    const [lessonRows] = await pool.execute(
-      `SELECT l.id, l.title, l.module_id, l.order_index,
+    const lessonResult = await pool.query(
+      `SELECT l.id, l.title, l.content, l.module_id, l.order_index,
               m.title AS module_title, m.subject, m.grade_level, m.course
        FROM lessons l
        JOIN modules m ON m.id = l.module_id
-       WHERE l.id = ?
-       LIMIT 1`,
+       WHERE l.id = $1 LIMIT 1`,
       [lessonId]
     );
-
-    if (lessonRows.length === 0) {
+    if (lessonResult.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Lesson not found.' });
     }
+    const lesson = lessonResult.rows[0];
 
-    const lesson = lessonRows[0];
-
-    let [content] = await pool.execute(
-      `SELECT id, type, body, language, order_index
-       FROM lesson_content
-       WHERE lesson_id = ?
-       ORDER BY order_index ASC`,
+    let contentResult = await pool.query(
+      `SELECT id, type, body, language, order_index FROM lesson_content WHERE lesson_id = $1 ORDER BY order_index ASC`,
       [lessonId]
     );
 
+    let content = contentResult.rows;
     if (content.length === 0) {
-      content = await _generateAndSaveContent(lesson, lessonId);
+      const body = lesson.content || `## ${lesson.title}\n\nContent coming soon.`;
+      await pool.query(
+        `INSERT INTO lesson_content (lesson_id, type, body, language, order_index) VALUES ($1, 'text', $2, NULL, 1)`,
+        [lessonId, body]
+      );
+      content = [{ id: 1, type: 'text', body, language: null, order_index: 1 }];
     }
 
-    const [questions] = await pool.execute(
-      `SELECT id, question, order_index
-       FROM quiz_questions
-       WHERE lesson_id = ?
-       ORDER BY order_index ASC`,
+    const questionsResult = await pool.query(
+      `SELECT id, question, order_index FROM quiz_questions WHERE lesson_id = $1 ORDER BY order_index ASC`,
       [lessonId]
     );
 
     const quiz = await Promise.all(
-      questions.map(async (q) => {
-        const [options] = await pool.execute(
-          `SELECT id, option_text, order_index
-           FROM quiz_options
-           WHERE question_id = ?
-           ORDER BY order_index ASC`,
+      questionsResult.rows.map(async (q) => {
+        const optionsResult = await pool.query(
+          `SELECT id, option_text, order_index FROM quiz_options WHERE question_id = $1 ORDER BY order_index ASC`,
           [q.id]
         );
-        return { ...q, options };
+        return { ...q, options: optionsResult.rows };
       })
     );
 
-    const [progressRows] = await pool.execute(
-      `SELECT completed, quiz_score, completed_at
-       FROM user_progress
-       WHERE user_id = ? AND lesson_id = ?
-       LIMIT 1`,
+    const progressResult = await pool.query(
+      `SELECT completed, quiz_score, completed_at FROM user_progress WHERE user_id = $1 AND lesson_id = $2 LIMIT 1`,
       [req.user.id, lessonId]
     );
 
-    const progress =
-      progressRows.length > 0
-        ? progressRows[0]
-        : { completed: 0, quiz_score: null, completed_at: null };
+    const progress = progressResult.rows.length > 0
+      ? progressResult.rows[0]
+      : { completed: 0, quiz_score: null, completed_at: null };
 
-    return res.status(200).json({
-      success: true,
-      lesson: { ...lesson, content, quiz, progress },
-    });
-  } catch (error) {
-    next(error);
-  }
+    return res.status(200).json({ success: true, lesson: { ...lesson, content, quiz, progress } });
+  } catch (error) { next(error); }
 };
 
-// =============================================================
-// POST /api/lessons/:id/complete
-// Body: { quizAnswers: { [questionId]: optionId } }
-// =============================================================
 exports.completeLesson = async (req, res, next) => {
   try {
     const lessonId = req.params.id;
     const { quizAnswers = {} } = req.body;
 
-    let correct = 0;
-    let total = 0;
-
-    // correctAnswers: { questionId -> correctOptionId }  ← returned to client
+    let correct = 0; let total = 0;
     const correctAnswers = {};
-
     const questionIds = Object.keys(quizAnswers).map(Number);
 
     if (questionIds.length > 0) {
-      const placeholders = questionIds.map(() => '?').join(',');
-
-      // Fetch the correct option ID for every submitted question
-      const [correctRows] = await pool.execute(
-        `SELECT question_id, id AS option_id
-         FROM quiz_options
-         WHERE question_id IN (${placeholders}) AND is_correct = 1`,
+      const placeholders = questionIds.map((_, i) => `$${i + 1}`).join(',');
+      const correctRows = await pool.query(
+        `SELECT question_id, id AS option_id FROM quiz_options WHERE question_id IN (${placeholders}) AND is_correct = TRUE`,
         questionIds
       );
-
-      // Build map and grade in one pass
-      for (const row of correctRows) {
-        correctAnswers[row.question_id] = row.option_id;
-      }
-
+      for (const row of correctRows.rows) { correctAnswers[row.question_id] = row.option_id; }
       total = questionIds.length;
-      correct = questionIds.filter(
-        (qid) => correctAnswers[qid] !== undefined &&
-                 correctAnswers[qid] === Number(quizAnswers[qid])
-      ).length;
+      correct = questionIds.filter((qid) => correctAnswers[qid] !== undefined && correctAnswers[qid] === Number(quizAnswers[qid])).length;
     }
 
     const score = total > 0 ? Math.round((correct / total) * 100) : 100;
 
-    // Upsert progress
-    await pool.execute(
+    await pool.query(
       `INSERT INTO user_progress (user_id, lesson_id, completed, quiz_score, completed_at)
-       VALUES (?, ?, 1, ?, NOW())
-       ON DUPLICATE KEY UPDATE
-         completed    = 1,
-         quiz_score   = VALUES(quiz_score),
-         completed_at = NOW()`,
+       VALUES ($1, $2, TRUE, $3, NOW())
+       ON CONFLICT (user_id, lesson_id) DO UPDATE SET completed = TRUE, quiz_score = EXCLUDED.quiz_score, completed_at = NOW()`,
       [req.user.id, lessonId, score]
     );
 
-    // Award XP
     const xpGained = score === 100 ? 30 : 20;
-    await pool.execute(
-      `UPDATE users
-       SET xp    = xp + ?,
-           level = FLOOR((xp + ?) / 100) + 1
-       WHERE id = ?`,
-      [xpGained, xpGained, req.user.id]
+    await pool.query(
+      `UPDATE users SET xp = xp + $1, level = FLOOR((xp + $1) / 100) + 1 WHERE id = $2`,
+      [xpGained, req.user.id]
     );
 
-    console.log('[completeLesson] correctAnswers:', JSON.stringify(correctAnswers));
+    const userResult = await pool.query(
+      `SELECT xp, level, (xp % 100) AS xpinlevel FROM users WHERE id = $1 LIMIT 1`,
+      [req.user.id]
+    );
+    const updatedUser = userResult.rows[0] ?? { xp: 0, level: 1, xpinlevel: 0 };
+
     return res.status(200).json({
-      success: true,
-      message: 'Lesson completed!',
-      score,
-      correct,
-      total,
-      xpGained,
-      correctAnswers,   // { "12": 45, "13": 47, ... }  questionId → correct optionId
+      success: true, message: 'Lesson completed!', score, correct, total, xpGained, correctAnswers,
+      xp: updatedUser.xp, level: updatedUser.level, xpInLevel: updatedUser.xpinlevel,
     });
-  } catch (error) {
-    next(error);
-  }
+  } catch (error) { next(error); }
 };
-
-// =============================================================
-// PRIVATE — AI content generation + persist
-// =============================================================
-async function _generateAndSaveContent(lesson, lessonId) {
-  const prompt = `You are an expert ${lesson.subject} teacher for Philippine Senior High School students (${lesson.grade_level}, ${lesson.course} strand).
-
-Create lesson content for the topic: "${lesson.title}" (part of the module "${lesson.module_title}").
-
-Respond ONLY with a JSON array of content blocks. No markdown fences. No explanation outside JSON.
-
-Each block must follow one of these shapes:
-- { "type": "text", "body": "markdown string", "order_index": N }
-- { "type": "code", "body": "code string", "language": "dart|javascript|python|java", "order_index": N }
-
-Requirements:
-- 3-5 content blocks total
-- Start with a clear text explanation
-- Include at least one code example relevant to the topic
-- Use simple, friendly language suitable for Grade 11/12 students
-- Body text may use basic markdown (##, **, -, \\n)`;
-
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 1500,
-    messages: [{ role: 'user', content: prompt }],
-  });
-
-  const raw = response.content[0].text.trim();
-  let blocks;
-
-  try {
-    blocks = JSON.parse(raw);
-  } catch {
-    blocks = [
-      {
-        type: 'text',
-        body: `## ${lesson.title}\n\nContent is being prepared. Please check back soon.`,
-        order_index: 1,
-      },
-    ];
-  }
-
-  for (const block of blocks) {
-    await pool.execute(
-      `INSERT INTO lesson_content (lesson_id, type, body, language, order_index)
-       VALUES (?, ?, ?, ?, ?)`,
-      [lessonId, block.type, block.body, block.language ?? null, block.order_index]
-    );
-  }
-
-  return blocks;
-}

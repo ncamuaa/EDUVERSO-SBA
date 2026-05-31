@@ -11,7 +11,7 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xFF0B0F8C),
       drawer: showDrawer ? const StudentDrawer() : null,
       body: Container(
         decoration: const BoxDecoration(

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
+import '../config/api_config.dart';
 
 // ── Models ────────────────────────────────────────────────────────────────────
 
@@ -60,7 +61,8 @@ class QuizQuestion {
         id: j['id'] as int,
         question: j['question'] as String,
         orderIndex: j['order_index'] as int,
-        options: (j['options'] as List)
+        // ✅ FIX: null-safe options list
+        options: ((j['options'] as List?) ?? [])
             .map((o) => QuizOption.fromJson(o as Map<String, dynamic>))
             .toList(),
       );
@@ -78,7 +80,8 @@ class LessonProgress {
   });
 
   factory LessonProgress.fromJson(Map<String, dynamic> j) => LessonProgress(
-        completed: (j['completed'] as int) == 1,
+        // ✅ FIX: handle both bool and int (1/0) from server
+        completed: j['completed'] == true || j['completed'] == 1,
         quizScore: j['quiz_score'] as int?,
         completedAt: j['completed_at'] as String?,
       );
@@ -86,6 +89,7 @@ class LessonProgress {
 
 class LessonDetail {
   final int id;
+  final int moduleId;
   final String title;
   final String moduleTitle;
   final String subject;
@@ -97,6 +101,7 @@ class LessonDetail {
 
   const LessonDetail({
     required this.id,
+    required this.moduleId,
     required this.title,
     required this.moduleTitle,
     required this.subject,
@@ -107,22 +112,38 @@ class LessonDetail {
     required this.progress,
   });
 
-  factory LessonDetail.fromJson(Map<String, dynamic> j) => LessonDetail(
-        id: j['id'] as int,
-        title: j['title'] as String,
-        moduleTitle: j['module_title'] as String,
-        subject: j['subject'] as String,
-        gradeLevel: j['grade_level'] as String,
-        course: j['course'] as String,
-        content: (j['content'] as List)
-            .map((c) => ContentBlock.fromJson(c as Map<String, dynamic>))
-            .toList(),
-        quiz: (j['quiz'] as List)
-            .map((q) => QuizQuestion.fromJson(q as Map<String, dynamic>))
-            .toList(),
-        progress: LessonProgress.fromJson(
-            j['progress'] as Map<String, dynamic>),
-      );
+  factory LessonDetail.fromJson(Map<String, dynamic> j) {
+    // ✅ DEBUG: print raw quiz data so you can see what the server returns
+    // Remove these prints once confirmed working.
+    final rawQuiz = j['quiz'];
+    print('──────────────────────────────────');
+    print('[LessonDetail] raw quiz field: $rawQuiz');
+    print('[LessonDetail] quiz type: ${rawQuiz.runtimeType}');
+    print('[LessonDetail] quiz length: ${(rawQuiz as List?)?.length ?? 0}');
+    print('──────────────────────────────────');
+
+    return LessonDetail(
+      id: j['id'] as int,
+      moduleId: j['module_id'] as int? ?? 0,
+      title: j['title'] as String,
+      moduleTitle: j['module_title'] as String,
+      subject: j['subject'] as String,
+      gradeLevel: j['grade_level'] as String,
+      course: j['course'] as String,
+      // ✅ FIX: null-safe content list
+      content: ((j['content'] as List?) ?? [])
+          .map((c) => ContentBlock.fromJson(c as Map<String, dynamic>))
+          .toList(),
+      // ✅ FIX: null-safe quiz list
+      quiz: ((j['quiz'] as List?) ?? [])
+          .map((q) => QuizQuestion.fromJson(q as Map<String, dynamic>))
+          .toList(),
+      // ✅ FIX: null-safe progress (fallback to not-completed if missing)
+      progress: j['progress'] != null
+          ? LessonProgress.fromJson(j['progress'] as Map<String, dynamic>)
+          : const LessonProgress(completed: false),
+    );
+  }
 }
 
 class CompletionResult {
@@ -132,8 +153,6 @@ class CompletionResult {
   final int xpGained;
 
   /// questionId → correct optionId
-  /// Populated if the server returns a `correctAnswers` map in the response.
-  /// e.g. { "12": 45, "13": 47 }  →  { 12: 45, 13: 47 }
   final Map<int, int>? correctOptionIds;
 
   const CompletionResult({
@@ -145,7 +164,6 @@ class CompletionResult {
   });
 
   factory CompletionResult.fromJson(Map<String, dynamic> j) {
-    // Parse correctAnswers: { "questionId": optionId }
     Map<int, int>? correctOptionIds;
     final raw = j['correctAnswers'];
     if (raw is Map && raw.isNotEmpty) {
@@ -172,8 +190,7 @@ class CompletionResult {
 // ── Service ───────────────────────────────────────────────────────────────────
 
 class LessonService {
-  static const String _base =
-      'http://localhost:5002';
+  static const String _base = '${ApiConfig.baseUrl}/api/lessons';
 
   static Future<Map<String, String>> get _headers async => {
         'Content-Type': 'application/json',
@@ -185,6 +202,11 @@ class LessonService {
       Uri.parse('$_base/$lessonId'),
       headers: await _headers,
     );
+
+    // ✅ DEBUG: print raw response so you can inspect it
+    print('[LessonService] GET /lessons/$lessonId → ${res.statusCode}');
+    print('[LessonService] body: ${res.body}');
+
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     if (res.statusCode == 200 && data['success'] == true) {
       return LessonDetail.fromJson(data['lesson'] as Map<String, dynamic>);

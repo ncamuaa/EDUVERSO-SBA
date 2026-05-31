@@ -15,6 +15,7 @@ class AnnouncementsPage extends StatefulWidget {
 class _AnnouncementsPageState extends State<AnnouncementsPage> {
   AnnouncementResult? _result;
   bool _loading = true;
+  String? _error; // 👈 added
   int _page = 1;
 
   @override
@@ -24,7 +25,10 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
   }
 
   Future<void> _load({int page = 1}) async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null; // 👈 clear previous error
+    });
     try {
       final result = await AnnouncementService.getAnnouncements(page: page);
       setState(() {
@@ -33,6 +37,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
       });
     } catch (e) {
       debugPrint('Error loading announcements: $e');
+      setState(() => _error = e.toString()); // 👈 store error
     } finally {
       setState(() => _loading = false);
     }
@@ -57,107 +62,120 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFFA56BFF)),
             )
-          : item == null
+          : _error != null // 👈 error state
               ? Center(
-                  child: Text(
-                    'No announcements yet.',
-                    style: TextStyle(
-                      fontSize: w * 0.04,
-                      color: Colors.white38,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Error: $_error',
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: w * 0.035,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 )
-              : ListView(
-                  padding:
-                      EdgeInsets.fromLTRB(pagePadding, 12, pagePadding, 18),
-                  children: [
-                    appCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+              : item == null
+                  ? Center(
+                      child: Text(
+                        'No announcements yet.',
+                        style: TextStyle(
+                          fontSize: w * 0.04,
+                          color: Colors.white38,
+                        ),
+                      ),
+                    )
+                  : ListView(
+                      padding: EdgeInsets.fromLTRB(pagePadding, 12, pagePadding, 18),
+                      children: [
+                        appCard(
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                child: Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    tag(item.tag, const Color(0xFF226BFF)),
-                                    tag(item.badge, AppTheme.accent2),
-                                  ],
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      children: [
+                                        tag(item.tag, const Color(0xFF226BFF)),
+                                        tag(item.badge, AppTheme.accent2),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      _formatDate(item.createdAt),
+                                      style: TextStyle(
+                                        fontSize: dateFont,
+                                        color: Colors.white70,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: w * 0.03),
+                              Text(
+                                item.title,
+                                style: TextStyle(
+                                  fontSize: titleFont,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  height: 1.2,
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  _formatDate(item.createdAt),
-                                  style: TextStyle(
-                                    fontSize: dateFont,
-                                    color: Colors.white70,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                              SizedBox(height: w * 0.03),
+                              Text(
+                                item.body,
+                                style: TextStyle(
+                                  fontSize: bodyFont,
+                                  height: 1.45,
+                                  color: Colors.white70,
                                 ),
                               ),
                             ],
                           ),
-                          SizedBox(height: w * 0.03),
-                          Text(
-                            item.title,
-                            style: TextStyle(
-                              fontSize: titleFont,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              height: 1.2,
-                            ),
-                          ),
-                          SizedBox(height: w * 0.03),
-                          Text(
-                            item.body,
-                            style: TextStyle(
-                              fontSize: bodyFont,
-                              height: 1.45,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: w * 0.05),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _navBtn(
-                          '◀ Prev',
-                          width: w * 0.22,
-                          height: w * 0.11,
-                          fontSize: buttonFont,
-                          enabled: _page > 1,
-                          onTap: () => _load(page: _page - 1),
                         ),
-                        SizedBox(width: w * 0.025),
-                        _navBtn(
-                          '$_page',
-                          width: w * 0.11,
-                          height: w * 0.11,
-                          fontSize: buttonFont,
-                          enabled: false,
-                        ),
-                        SizedBox(width: w * 0.025),
-                        _navBtn(
-                          'Next ▶',
-                          width: w * 0.22,
-                          height: w * 0.11,
-                          fontSize: buttonFont,
-                          enabled: _page < totalPages,
-                          onTap: () => _load(page: _page + 1),
+                        SizedBox(height: w * 0.05),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _navBtn(
+                              '◀ Prev',
+                              width: w * 0.22,
+                              height: w * 0.11,
+                              fontSize: buttonFont,
+                              enabled: _page > 1,
+                              onTap: () => _load(page: _page - 1),
+                            ),
+                            SizedBox(width: w * 0.025),
+                            _navBtn(
+                              '$_page',
+                              width: w * 0.11,
+                              height: w * 0.11,
+                              fontSize: buttonFont,
+                              enabled: false,
+                            ),
+                            SizedBox(width: w * 0.025),
+                            _navBtn(
+                              'Next ▶',
+                              width: w * 0.22,
+                              height: w * 0.11,
+                              fontSize: buttonFont,
+                              enabled: _page < totalPages,
+                              onTap: () => _load(page: _page + 1),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
     );
   }
 

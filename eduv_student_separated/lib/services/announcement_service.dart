@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
+import '../config/api_config.dart';
 
 class Announcement {
   final int id;
@@ -44,8 +45,8 @@ class AnnouncementResult {
 }
 
 class AnnouncementService {
-  static const String _base =
-    'http://localhost:5002/api/announcements';
+  // Flutter Web uses localhost directly
+  static const String _base = '${ApiConfig.baseUrl}/api/announcements';
 
   static Future<Map<String, String>> get _headers async => {
         'Content-Type': 'application/json',
@@ -54,7 +55,14 @@ class AnnouncementService {
 
   static Future<AnnouncementResult> getAnnouncements({int page = 1}) async {
     final uri = Uri.parse('$_base?page=$page&limit=1');
+
+    print('[AnnouncementService] GET $uri'); // 👈 debug
+
     final res = await http.get(uri, headers: await _headers);
+
+    print('[AnnouncementService] status: ${res.statusCode}'); // 👈 debug
+    print('[AnnouncementService] body: ${res.body}');         // 👈 debug
+
     final data = jsonDecode(res.body) as Map<String, dynamic>;
 
     if (res.statusCode == 200 && data['success'] == true) {

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../pages/ai_tutor_page.dart';
@@ -14,8 +17,20 @@ import '../theme/app_theme.dart';
 class StudentDrawer extends StatelessWidget {
   const StudentDrawer({super.key});
 
+  Uint8List? _decodeProfileImage(dynamic image) {
+    if (image == null || image.toString().isEmpty) return null;
+
+    try {
+      return base64Decode(image.toString());
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final screenW = MediaQuery.of(context).size.width;
+
     final items = [
       _DrawerLink('Voice Tutor', Icons.mic, const AITutorPage()),
       _DrawerLink('Modules', Icons.menu_book_rounded, const ModulesPage()),
@@ -27,7 +42,7 @@ class StudentDrawer extends StatelessWidget {
     ];
 
     return Drawer(
-      width: MediaQuery.of(context).size.width * .82,
+      width: screenW * 0.72,
       backgroundColor: Colors.transparent,
       child: Container(
         decoration: const BoxDecoration(
@@ -39,81 +54,85 @@ class StudentDrawer extends StatelessWidget {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Column(
               children: [
-                Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 34,
-                      backgroundColor: Colors.white24,
-                      child: Icon(Icons.person, color: Colors.white, size: 36),
-                    ),
-                    const SizedBox(width: 18),
-                    Expanded(
-                      child: FutureBuilder<Map<String, dynamic>>(
-                        future: AuthService.getProfile(),
-                        builder: (context, snapshot) {
-                          final user = snapshot.data?['user'];
-                          final name = user?['fullName'] ?? 'Loading...';
+                FutureBuilder<Map<String, dynamic>>(
+                  future: AuthService.getProfile(),
+                  builder: (context, snapshot) {
+                    final user = snapshot.data?['user'];
+                    final name = user?['fullName'] ?? 'Loading...';
+                    final level = (user?['level'] ?? 1).toString();
+                    final imageBytes = _decodeProfileImage(user?['profileImage']);
 
-                          return Column(
+                    return Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: Colors.white24,
+                          backgroundImage:
+                              imageBytes != null ? MemoryImage(imageBytes) : null,
+                          child: imageBytes == null
+                              ? const Icon(Icons.person, color: Colors.white, size: 18)
+                              : null,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 name,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontSize: 28,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
                                 ),
                               ),
-                              const Text(
-                                'Level 1',
-                                style: TextStyle(
-                                  fontSize: 18,
+                              Text(
+                                'Level $level',
+                                style: const TextStyle(
+                                  fontSize: 11,
                                   color: AppTheme.textSoft,
                                 ),
                               ),
                             ],
-                          );
-                        },
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.white24,
-                      ),
-                      icon: const Icon(Icons.close, color: Colors.white),
-                    ),
-                  ],
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.close, color: Colors.white, size: 16),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 14),
 
                 Expanded(
                   child: SingleChildScrollView(
                     child: Column(
-                      children: [
-                        ...items.map(
-                          (e) => Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: _drawerButton(
-                              context,
-                              e.label,
-                              e.icon,
-                              e.page,
-                            ),
-                          ),
+                      children: items.map(
+                        (e) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: _drawerButton(context, e.label, e.icon, e.page),
                         ),
-                      ],
+                      ).toList(),
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
 
                 _drawerButton(
                   context,
@@ -154,24 +173,22 @@ class StudentDrawer extends StatelessWidget {
             Navigator.push(context, MaterialPageRoute(builder: (_) => page));
           }
         },
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(10),
         child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           decoration: BoxDecoration(
-            color: logout
-                ? const Color(0xFF6F1E4A)
-                : Colors.white.withOpacity(.08),
-            borderRadius: BorderRadius.circular(18),
+            color: logout ? const Color(0xFF6F1E4A) : Colors.white.withOpacity(.08),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
             children: [
-              Icon(icon, color: Colors.white, size: 28),
-              const SizedBox(width: 14),
+              Icon(icon, color: Colors.white, size: 17),
+              const SizedBox(width: 10),
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
               ),
@@ -204,6 +221,7 @@ class _FeedbackPageWrapperState extends State<_FeedbackPageWrapper> {
   @override
   void initState() {
     super.initState();
+
     AuthService.getCachedUser().then((u) {
       if (mounted) {
         setState(() => _userId = (u?['id'] ?? 0) as int);
@@ -221,6 +239,7 @@ class _FeedbackPageWrapperState extends State<_FeedbackPageWrapper> {
         ),
       );
     }
+
     return PeerFeedbackPage(userId: _userId!);
   }
 }

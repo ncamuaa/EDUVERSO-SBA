@@ -1,13 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
-import '../config/api.dart';
+import '../config/api_config.dart';
 import '../utils/app_size.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
-
   @override
   State<RegisterPage> createState() => _RegisterPageState();
 }
@@ -15,7 +13,6 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   bool hidePassword = true;
   bool isLoading = false;
-
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -37,12 +34,10 @@ class _RegisterPageState extends State<RegisterPage> {
       );
       return;
     }
-
     setState(() => isLoading = true);
-
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/register'),
+        Uri.parse('${ApiConfig.baseUrl}/api/auth/register'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "fullName": nameController.text,
@@ -50,9 +45,7 @@ class _RegisterPageState extends State<RegisterPage> {
           "password": passwordController.text,
         }),
       );
-
       final data = jsonDecode(response.body);
-
       if (response.statusCode == 201 || data['success'] == true) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -77,8 +70,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    final w = AppSize.w(context); // ✅ FIXED
-
+    final w = AppSize.w(context);
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -93,12 +85,9 @@ class _RegisterPageState extends State<RegisterPage> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: w * 0.06,
-                vertical: 20,
-              ),
+              padding: EdgeInsets.symmetric(horizontal: w * 0.06, vertical: 20),
               child: Container(
-                width: w, // ✅ IMPORTANT (same as login)
+                width: w,
                 padding: EdgeInsets.symmetric(
                   horizontal: w * 0.06,
                   vertical: w * 0.08,
@@ -111,44 +100,30 @@ class _RegisterPageState extends State<RegisterPage> {
                   children: [
                     Image.asset('assets/1.png', width: w * 0.22),
                     SizedBox(height: w * 0.05),
-
-                    Text(
-                      'Register',
-                      style: TextStyle(
-                        fontSize: w * 0.07,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-
+                    Text('Register',
+                        style: TextStyle(
+                          fontSize: w * 0.07,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        )),
                     SizedBox(height: w * 0.06),
-
                     _inputField('Full Name', false, nameController, w),
                     SizedBox(height: w * 0.04),
-
                     _inputField('Email', false, emailController, w),
                     SizedBox(height: w * 0.04),
-
-                    _inputField(
-                      'Password',
-                      hidePassword,
-                      passwordController,
-                      w,
-                      suffix: GestureDetector(
-                        onTap: () =>
-                            setState(() => hidePassword = !hidePassword),
-                        child: Icon(
-                          hidePassword
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                          color: Colors.white70,
-                          size: w * 0.045,
-                        ),
-                      ),
-                    ),
-
+                    _inputField('Password', hidePassword, passwordController, w,
+                        suffix: GestureDetector(
+                          onTap: () =>
+                              setState(() => hidePassword = !hidePassword),
+                          child: Icon(
+                            hidePassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: Colors.white70,
+                            size: w * 0.045,
+                          ),
+                        )),
                     SizedBox(height: w * 0.06),
-
                     SizedBox(
                       width: double.infinity,
                       height: w * 0.12,
@@ -166,30 +141,25 @@ class _RegisterPageState extends State<RegisterPage> {
                             shadowColor: Colors.transparent,
                           ),
                           child: isLoading
-                              ? const CircularProgressIndicator(color: Colors.white)
-                              : Text(
-                                  'Register',
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white)
+                              : Text('Register',
                                   style: TextStyle(
                                     fontSize: w * 0.04,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
-                                  ),
-                                ),
+                                  )),
                         ),
                       ),
                     ),
-
                     SizedBox(height: w * 0.04),
-
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: Text(
-                        'Already have an account? Login',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: w * 0.035,
-                        ),
-                      ),
+                      child: Text('Already have an account? Login',
+                          style: TextStyle(
+                            fontSize: w * 0.035,
+                            color: Colors.white70,
+                          )),
                     ),
                   ],
                 ),
@@ -222,17 +192,12 @@ class _RegisterPageState extends State<RegisterPage> {
             child: TextField(
               controller: controller,
               obscureText: obscure,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: w * 0.038,
-              ),
+              style: TextStyle(color: Colors.white, fontSize: w * 0.038),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: hint,
-                hintStyle: TextStyle(
-                  color: Colors.white70,
-                  fontSize: w * 0.038,
-                ),
+                hintStyle:
+                    TextStyle(color: Colors.white70, fontSize: w * 0.038),
               ),
             ),
           ),

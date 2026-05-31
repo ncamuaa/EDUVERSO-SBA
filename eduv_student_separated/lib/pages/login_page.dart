@@ -1,9 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart'; // ✅ ADD THIS
 
-import '../config/api.dart';
+import '../services/auth_service.dart';
 import '../utils/app_size.dart';
 
 class LoginPage extends StatefulWidget {
@@ -38,35 +35,25 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => isLoading = true);
 
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/login'),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "email": emailController.text,
-          "password": passwordController.text,
-        }),
+      // AuthService.login() handles:
+      // - HTTP call
+      // - saving token to SharedPreferences
+      // - setting _cachedToken in memory
+      // - fetching and caching the profile
+      // - preserving last_module_* keys
+      await AuthService.login(
+        email: emailController.text.trim(),
+        password: passwordController.text,
       );
 
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && data['success'] == true) {
-        // ✅ SAVE TOKEN HERE (VERY IMPORTANT)
-        final prefs = await SharedPreferences.getInstance();
-await prefs.clear(); // 🔥 clear old user
-await prefs.setString('token', data['token']);
-
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['message'] ?? 'Login failed')),
-        );
-      }
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/dashboard');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+        ),
       );
     } finally {
       if (mounted) setState(() => isLoading = false);
@@ -179,9 +166,8 @@ await prefs.setString('token', data['token']);
                     SizedBox(height: w * 0.04),
 
                     TextButton(
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/register');
-                      },
+                      onPressed: () =>
+                          Navigator.pushNamed(context, '/register'),
                       child: Text(
                         "Don't have an account? Register",
                         style: TextStyle(
