@@ -1,7 +1,4 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'auth_service.dart';
-import '../config/api_config.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Announcement {
   final int id;
@@ -22,11 +19,11 @@ class Announcement {
 
   factory Announcement.fromJson(Map<String, dynamic> j) => Announcement(
         id: j['id'] as int,
-        tag: j['tag'] as String,
-        badge: j['badge'] as String,
-        title: j['title'] as String,
-        body: j['body'] as String,
-        createdAt: j['created_at'] as String,
+        tag: j['tag'] as String? ?? '',
+        badge: j['badge'] as String? ?? '',
+        title: j['title'] as String? ?? '',
+        body: j['body'] as String? ?? '',
+        createdAt: j['created_at'] as String? ?? '',
       );
 }
 
@@ -45,38 +42,33 @@ class AnnouncementResult {
 }
 
 class AnnouncementService {
-  // Flutter Web uses localhost directly
-  static const String _base = '${ApiConfig.baseUrl}/api/announcements';
-
-  static Future<Map<String, String>> get _headers async => {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${await AuthService.getToken()}',
-      };
+  static final _db = Supabase.instance.client;
+  static const int _perPage = 1;
 
   static Future<AnnouncementResult> getAnnouncements({int page = 1}) async {
-    final uri = Uri.parse('$_base?page=$page&limit=1');
+    final from = (page - 1) * _perPage;
+    final to = from + _perPage - 1;
 
-    print('[AnnouncementService] GET $uri'); // 👈 debug
+    final countRes = await _db
+        .from('announcements')
+        .select('id');
+    final total = (countRes as List).length;
 
-    final res = await http.get(uri, headers: await _headers);
+    final response = await _db
+        .from('announcements')
+        .select()
+        .order('created_at', ascending: false)
+        .range(from, to);
 
-    print('[AnnouncementService] status: ${res.statusCode}'); // 👈 debug
-    print('[AnnouncementService] body: ${res.body}');         // 👈 debug
+    final list = (response as List)
+        .map((a) => Announcement.fromJson(a as Map<String, dynamic>))
+        .toList();
 
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
-
-    if (res.statusCode == 200 && data['success'] == true) {
-      final list = (data['data'] as List)
-          .map((a) => Announcement.fromJson(a as Map<String, dynamic>))
-          .toList();
-      final pagination = data['pagination'] as Map<String, dynamic>;
-      return AnnouncementResult(
-        data: list,
-        total: pagination['total'] as int,
-        page: pagination['page'] as int,
-        totalPages: pagination['totalPages'] as int,
-      );
-    }
-    throw Exception(data['message'] ?? 'Failed to load announcements');
+    return AnnouncementResult(
+      data: list,
+      total: total,
+      page: page,
+      totalPages: (total / _perPage).ceil().clamp(1, 9999),
+    );
   }
 }

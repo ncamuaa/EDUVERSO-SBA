@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'onboarding_page.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/game_progress_service.dart';
 
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
@@ -44,25 +46,18 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     super.initState();
 
     _profileFuture = _loadProfile();
+    AuthService.getToken().then((t) => print('🔑 TOKEN: $t'));
     _profileFuture.then((data) => _loadProfileImageFromData(data));
 
     _loadLastModule();
   }
 
   Future<Map<String, dynamic>> _loadProfile() async {
-    final cached = await AuthService.getCachedUser();
-
     try {
       final freshProfile = await AuthService.getProfile();
-
-      if (mounted) {
-        setState(() {
-          _profileFuture = Future.value(freshProfile);
-        });
-      }
-
       return freshProfile;
     } catch (_) {
+      final cached = await AuthService.getCachedUser();
       if (cached != null) return {'user': cached};
       rethrow;
     }
@@ -70,7 +65,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
 
   Future<void> _loadProfileImageFromData(Map<String, dynamic> data) async {
     try {
-      final dbImage = data['user']?['profileImage'];
+      final dbImage = data['profileImage'];
 
       if (dbImage != null && dbImage.toString().isNotEmpty) {
         final prefs = await SharedPreferences.getInstance();
@@ -116,15 +111,10 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   Future<void> _loadLastModule() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // ignore: avoid_print
     print('=== LAST MODULE DEBUG ===');
-    // ignore: avoid_print
     print('title: ${prefs.getString('last_module_title')}');
-    // ignore: avoid_print
     print('lesson_id: ${prefs.getInt('last_lesson_id')}');
-    // ignore: avoid_print
     print('module_id: ${prefs.getInt('last_module_id')}');
-    // ignore: avoid_print
     print('=========================');
 
     final title = prefs.getString('last_module_title');
@@ -154,7 +144,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     try {
       final token = await AuthService.getToken();
       final res = await http.get(
-        Uri.parse('http://192.168.100.16:5002/api/lessons/module/$moduleId'),
+        Uri.parse('DISABLED'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -192,7 +182,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       try {
         final data = await AuthService.getProfile();
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user', jsonEncode(data['user']));
+        await prefs.setString('user', jsonEncode(data));
 
         setState(() {
           _profileFuture = Future.value(data);
@@ -230,424 +220,430 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
   Widget build(BuildContext context) {
     final w = AppSize.w(context);
 
-    return AppShell(
-      showDrawer: true,
-      child: Builder(
-        builder: (context) => SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(w * 0.04, 12, w * 0.04, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Scaffold.of(context).openDrawer(),
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.white.withOpacity(.08),
-                      minimumSize: Size(w * 0.11, w * 0.11),
-                      padding: EdgeInsets.zero,
-                    ),
-                    icon: Icon(
-                      Icons.menu_rounded,
-                      color: Colors.white,
-                      size: w * 0.05,
-                    ),
-                  ),
-
-                  SizedBox(width: w * 0.02),
-
-                  const Expanded(
-                    child: Center(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: LogoText(),
+    return OnboardingOverlay(
+      child: AppShell(
+        showDrawer: true,
+        child: Builder(
+          builder: (context) => SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(w * 0.04, 12, w * 0.04, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Scaffold.of(context).openDrawer(),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(.08),
+                        minimumSize: Size(w * 0.11, w * 0.11),
+                        padding: EdgeInsets.zero,
+                      ),
+                      icon: Icon(
+                        Icons.menu_rounded,
+                        color: Colors.white,
+                        size: w * 0.05,
                       ),
                     ),
-                  ),
+                    SizedBox(width: w * 0.02),
+                    const Expanded(
+                      child: Center(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: LogoText(),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: w * 0.02),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ProfilePage(),
+                            ),
+                          );
 
-                  SizedBox(width: w * 0.02),
+                          try {
+                            final data = await AuthService.getProfile();
+                            if (mounted) {
+                              setState(() {
+                                _profileFuture = Future.value(data);
+                              });
+                              await _loadProfileImageFromData(data);
+                            }
+                          } catch (_) {}
+                        },
+                        borderRadius: BorderRadius.circular(999),
+                        child: CircleAvatar(
+                          radius: w * 0.055,
+                          backgroundColor: Colors.white24,
+                          backgroundImage: _profileImageBytes != null
+                              ? MemoryImage(_profileImageBytes!)
+                              : null,
+                          child: _profileImageBytes == null
+                              ? Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: w * 0.045,
+                                )
+                              : null,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: w * 0.04),
+                FutureBuilder<Map<String, dynamic>>(
+                  future: _profileFuture,
+                  builder: (context, snapshot) {
+                    final user = snapshot.data;
 
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ProfilePage(),
+                    final name = user?['full_name'] ?? 'Student';
+                    final xp = (user?['xp'] ?? 0) as int;
+                    final level = (user?['level'] ?? 1) as int;
+                    final streak = (user?['streak'] ?? 0) as int;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Welcome,',
+                          style: TextStyle(
+                            fontSize: w * 0.038,
+                            color: Colors.white60,
                           ),
-                        );
-
-                        // Reload profile and image after returning from ProfilePage
-                        try {
-                          final data = await AuthService.getProfile();
-                          if (mounted) {
-                            setState(() {
-                              _profileFuture = Future.value(data);
-                            });
-                            await _loadProfileImageFromData(data);
-                          }
-                        } catch (_) {}
-                      },
-                      borderRadius: BorderRadius.circular(999),
-                      child: CircleAvatar(
-                        radius: w * 0.055,
-                        backgroundColor: Colors.white24,
-                        backgroundImage: _profileImageBytes != null
-                            ? MemoryImage(_profileImageBytes!)
-                            : null,
-                        child: _profileImageBytes == null
-                            ? Icon(
-                                Icons.person,
-                                color: Colors.white,
-                                size: w * 0.045,
-                              )
-                            : null,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: w * 0.04),
-
-              FutureBuilder<Map<String, dynamic>>(
-                future: _profileFuture,
-                builder: (context, snapshot) {
-                  final user = snapshot.data?['user'];
-
-                  final name = user?['fullName'] ?? 'Student';
-                  final xp = (user?['xpInLevel'] ?? 0) as int;
-                  final level = (user?['level'] ?? 1) as int;
-                  final streak = (user?['streak'] ?? 0) as int;
-                  final progress = (user?['progress'] ?? 0.0).toDouble();
-                  final progressPct = (progress * 100).toInt();
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Welcome,',
-                        style: TextStyle(
-                          fontSize: w * 0.038,
-                          color: Colors.white60,
                         ),
-                      ),
-                      Text(
-                        name,
-                        style: TextStyle(
-                          fontSize: w * 0.055,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
+                        Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: w * 0.055,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                      Text(
-                        'Shape your future, one lesson at a time.',
-                        style: TextStyle(
-                          fontSize: w * 0.032,
-                          color: AppTheme.textSoft,
+                        Text(
+                          'Shape your future, one lesson at a time.',
+                          style: TextStyle(
+                            fontSize: w * 0.032,
+                            color: AppTheme.textSoft,
+                          ),
                         ),
-                      ),
-
-                      SizedBox(height: w * 0.04),
-
-                      appCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  'Daily Focus',
-                                  style: TextStyle(
-                                    fontSize: w * 0.035,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white60,
-                                  ),
-                                ),
-                                const Spacer(),
-                                if (_hasLastModule)
-                                  GestureDetector(
-                                    onTap: () => _goToModules(context),
-                                    child: Text(
-                                      'Change',
-                                      style: TextStyle(
-                                        fontSize: w * 0.03,
-                                        color: const Color(0xFFA56BFF),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _lastModuleTitle,
-                              style: TextStyle(
-                                fontSize: w * 0.042,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
-                            if (_lastModuleSubject.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                _lastModuleSubject,
-                                style: TextStyle(
-                                  fontSize: w * 0.03,
-                                  color: Colors.white54,
-                                ),
-                              ),
-                            ],
-                            SizedBox(height: w * 0.025),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: progressBar(_lastModuleProgress),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '${(_lastModuleProgress * 100).toInt()}%',
-                                  style: TextStyle(
-                                    fontSize: w * 0.032,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: w * 0.03),
-
-                            GestureDetector(
-                              onTap: () => _hasLastModule
-                                  ? _continueLastModule(context)
-                                  : _goToModules(context),
-                              child: Container(
-                                height: w * 0.2,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF071C66),
-                                      Color(0xFF1558E1),
-                                    ],
-                                  ),
-                                ),
-                                alignment: Alignment.center,
-                                child: _hasLastModule
-                                    ? Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.play_circle_fill,
-                                            color: Colors.white70,
-                                            size: w * 0.055,
-                                          ),
-                                          SizedBox(width: w * 0.02),
-                                          Flexible(
-                                            child: Text(
-                                              _lastModuleTitle.toUpperCase(),
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: w * 0.033,
-                                                letterSpacing: 0.8,
-                                                fontWeight: FontWeight.w700,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                          SizedBox(width: w * 0.02),
-                                          Container(
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: w * 0.03,
-                                              vertical: w * 0.01,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white.withOpacity(
-                                                0.15,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                            ),
-                                            child: Text(
-                                              'Continue →',
-                                              style: TextStyle(
-                                                fontSize: w * 0.028,
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.menu_book_rounded,
-                                            color: Colors.white38,
-                                            size: w * 0.07,
-                                          ),
-                                          SizedBox(height: w * 0.015),
-                                          Text(
-                                            'Tap to browse modules',
-                                            style: TextStyle(
-                                              fontSize: w * 0.032,
-                                              color: Colors.white38,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      SizedBox(height: w * 0.03),
-
-                      appCard(
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                        SizedBox(height: w * 0.04),
+                        appCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
                                 children: [
                                   Text(
-                                    'Your Progress',
+                                    'Daily Focus',
                                     style: TextStyle(
-                                      fontSize: w * 0.033,
-                                      fontWeight: FontWeight.w600,
+                                      fontSize: w * 0.035,
+                                      fontWeight: FontWeight.w700,
                                       color: Colors.white60,
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
+                                  const Spacer(),
+                                  if (_hasLastModule)
+                                    GestureDetector(
+                                      onTap: () => _goToModules(context),
+                                      child: Text(
+                                        'Change',
+                                        style: TextStyle(
+                                          fontSize: w * 0.03,
+                                          color: const Color(0xFFA56BFF),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                _lastModuleTitle,
+                                style: TextStyle(
+                                  fontSize: w * 0.042,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              if (_lastModuleSubject.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  _lastModuleSubject,
+                                  style: TextStyle(
+                                    fontSize: w * 0.03,
+                                    color: Colors.white54,
+                                  ),
+                                ),
+                              ],
+                              SizedBox(height: w * 0.025),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: progressBar(_lastModuleProgress),
+                                  ),
+                                  const SizedBox(width: 8),
                                   Text(
-                                    'Level $level',
+                                    '${(_lastModuleProgress * 100).toInt()}%',
                                     style: TextStyle(
-                                      fontSize: w * 0.046,
-                                      fontWeight: FontWeight.w800,
+                                      fontSize: w * 0.032,
+                                      fontWeight: FontWeight.w700,
                                       color: Colors.white,
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '$xp / 100 XP',
-                                    style: TextStyle(
-                                      fontSize: w * 0.032,
-                                      color: Colors.white70,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '🔥 $streak-day streak',
-                                    style: TextStyle(
-                                      fontSize: w * 0.032,
-                                      color: Colors.white70,
-                                    ),
-                                  ),
                                 ],
                               ),
+                              SizedBox(height: w * 0.03),
+                              GestureDetector(
+                                onTap: () => _hasLastModule
+                                    ? _continueLastModule(context)
+                                    : _goToModules(context),
+                                child: Container(
+                                  height: w * 0.2,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF071C66),
+                                        Color(0xFF1558E1),
+                                      ],
+                                    ),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: _hasLastModule
+                                      ? Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.play_circle_fill,
+                                              color: Colors.white70,
+                                              size: w * 0.055,
+                                            ),
+                                            SizedBox(width: w * 0.02),
+                                            Flexible(
+                                              child: Text(
+                                                _lastModuleTitle.toUpperCase(),
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: w * 0.033,
+                                                  letterSpacing: 0.8,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                            SizedBox(width: w * 0.02),
+                                            Container(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: w * 0.03,
+                                                vertical: w * 0.01,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withOpacity(
+                                                  0.15,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: Text(
+                                                'Continue →',
+                                                style: TextStyle(
+                                                  fontSize: w * 0.028,
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.menu_book_rounded,
+                                              color: Colors.white38,
+                                              size: w * 0.07,
+                                            ),
+                                            SizedBox(height: w * 0.015),
+                                            Text(
+                                              'Tap to browse modules',
+                                              style: TextStyle(
+                                                fontSize: w * 0.032,
+                                                color: Colors.white38,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: w * 0.03),
+                        appCard(
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Your Progress',
+                                      style: TextStyle(
+                                        fontSize: w * 0.033,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white60,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Level $level',
+                                      style: TextStyle(
+                                        fontSize: w * 0.046,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    FutureBuilder<int>(
+                                      future: GameProgressService.getXp(),
+                                      builder: (_, snap) {
+                                        final totalXp = xp + (snap.data ?? 0);
+                                        return Text(
+                                          '$totalXp XP',
+                                          style: TextStyle(
+                                            fontSize: w * 0.032,
+                                            color: Colors.white70,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '🔥 $streak-day streak',
+                                      style: TextStyle(
+                                        fontSize: w * 0.032,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(width: w * 0.03),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    FutureBuilder<int>(
+                                      future: GameProgressService.getXp(),
+                                      builder: (_, snap) {
+                                        final gameXp = snap.data ?? 0;
+                                        final totalXp = xp + gameXp;
+                                        final pct = (totalXp % 100) / 100;
+                                        final pctInt = (pct * 100).toInt();
+
+                                        return Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '$pctInt% to next level',
+                                              style: TextStyle(
+                                                fontSize: w * 0.03,
+                                                color: Colors.white54,
+                                              ),
+                                            ),
+                                            SizedBox(height: w * 0.02),
+                                            progressBar(pct),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: w * 0.04),
+                        Text(
+                          'Quick Access',
+                          style: TextStyle(
+                            fontSize: w * 0.038,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white70,
+                          ),
+                        ),
+                        SizedBox(height: w * 0.025),
+                        GridView.count(
+                          crossAxisCount: 2,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisSpacing: w * 0.03,
+                          mainAxisSpacing: w * 0.03,
+                          childAspectRatio: 2.8,
+                          children: [
+                            _homeButton(
+                              context,
+                              'Voice Tutor',
+                              AppTheme.blue,
+                              Icons.mic,
+                              const AITutorPage(),
+                              w,
                             ),
-                            SizedBox(width: w * 0.03),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '$progressPct% to next level',
-                                    style: TextStyle(
-                                      fontSize: w * 0.03,
-                                      color: Colors.white54,
-                                    ),
-                                  ),
-                                  SizedBox(height: w * 0.02),
-                                  progressBar(progress),
-                                ],
-                              ),
+                            _homeButtonCallback(
+                              context,
+                              'Modules',
+                              AppTheme.green,
+                              Icons.menu_book_rounded,
+                              () => _goToModules(context),
+                              w,
+                            ),
+                            _homeButton(
+                              context,
+                              'Peer Feedback',
+                              const Color(0xFFFF5F98),
+                              Icons.forum_outlined,
+                              const _FeedbackPageWrapper(),
+                              w,
+                            ),
+                            _homeButton(
+                              context,
+                              'Game Arena',
+                              AppTheme.yellow,
+                              Icons.psychology_alt,
+                              const GameArenaPage(),
+                              w,
+                            ),
+                            _homeButton(
+                              context,
+                              'Announcement',
+                              const Color(0xFF4AA0FF),
+                              Icons.campaign_outlined,
+                              const AnnouncementsPage(),
+                              w,
+                            ),
+                            _homeButton(
+                              context,
+                              'Settings',
+                              const Color(0xFFA175FF),
+                              Icons.settings,
+                              const SettingsPage(),
+                              w,
                             ),
                           ],
                         ),
-                      ),
-
-                      SizedBox(height: w * 0.04),
-
-                      Text(
-                        'Quick Access',
-                        style: TextStyle(
-                          fontSize: w * 0.038,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white70,
-                        ),
-                      ),
-
-                      SizedBox(height: w * 0.025),
-
-                      GridView.count(
-                        crossAxisCount: 2,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisSpacing: w * 0.03,
-                        mainAxisSpacing: w * 0.03,
-                        childAspectRatio: 2.8,
-                        children: [
-                          _homeButton(
-                            context,
-                            'Voice Tutor',
-                            AppTheme.blue,
-                            Icons.mic,
-                            const AITutorPage(),
-                            w,
-                          ),
-                          _homeButtonCallback(
-                            context,
-                            'Modules',
-                            AppTheme.green,
-                            Icons.menu_book_rounded,
-                            () => _goToModules(context),
-                            w,
-                          ),
-                          _homeButton(
-                            context,
-                            'Peer Feedback',
-                            const Color(0xFFFF5F98),
-                            Icons.forum_outlined,
-                            const _FeedbackPageWrapper(),
-                            w,
-                          ),
-                          _homeButton(
-                            context,
-                            'Game Arena',
-                            AppTheme.yellow,
-                            Icons.psychology_alt,
-                            const GameArenaPage(),
-                            w,
-                          ),
-                          _homeButton(
-                            context,
-                            'Announcement',
-                            const Color(0xFF4AA0FF),
-                            Icons.campaign_outlined,
-                            const AnnouncementsPage(),
-                            w,
-                          ),
-                          _homeButton(
-                            context,
-                            'Settings',
-                            const Color(0xFFA175FF),
-                            Icons.settings,
-                            const SettingsPage(),
-                            w,
-                          ),
-                        ],
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ],
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -728,7 +724,7 @@ class _FeedbackPageWrapper extends StatefulWidget {
 }
 
 class _FeedbackPageWrapperState extends State<_FeedbackPageWrapper> {
-  int? _userId;
+  String? _userId;
 
   @override
   void initState() {
@@ -736,7 +732,7 @@ class _FeedbackPageWrapperState extends State<_FeedbackPageWrapper> {
 
     AuthService.getCachedUser().then((u) {
       if (mounted) {
-        setState(() => _userId = (u?['id'] ?? 0) as int);
+        setState(() => _userId = u?['id']?.toString() ?? '');
       }
     });
   }

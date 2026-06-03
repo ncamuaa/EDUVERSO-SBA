@@ -60,10 +60,10 @@ class StudentDrawer extends StatelessWidget {
                 FutureBuilder<Map<String, dynamic>>(
                   future: AuthService.getProfile(),
                   builder: (context, snapshot) {
-                    final user = snapshot.data?['user'];
-                    final name = user?['fullName'] ?? 'Loading...';
-                    final level = (user?['level'] ?? 1).toString();
-                    final imageBytes = _decodeProfileImage(user?['profileImage']);
+                    final user = snapshot.data;
+                    final name = snapshot.data?['full_name'] ?? 'Loading...';
+                    final level = (snapshot.data?['level'] ?? 1).toString();
+                    final imageBytes = _decodeProfileImage(snapshot.data?['profileImage']);
 
                     return Row(
                       children: [
@@ -216,7 +216,7 @@ class _FeedbackPageWrapper extends StatefulWidget {
 }
 
 class _FeedbackPageWrapperState extends State<_FeedbackPageWrapper> {
-  int? _userId;
+  String? _userId;
 
   @override
   void initState() {
@@ -224,7 +224,7 @@ class _FeedbackPageWrapperState extends State<_FeedbackPageWrapper> {
 
     AuthService.getCachedUser().then((u) {
       if (mounted) {
-        setState(() => _userId = (u?['id'] ?? 0) as int);
+        setState(() => _userId = u?['id']?.toString() ?? '');
       }
     });
   }

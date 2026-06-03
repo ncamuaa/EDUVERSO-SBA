@@ -7,6 +7,7 @@ const {
   submitGuessGame,
   getEscapePuzzles,
   submitEscapePuzzle,
+  syncProgress,
 } = require('../controllers/gameArenaController');
 
 const { protect } = require('../middleware/authMiddleware');
@@ -17,6 +18,7 @@ router.use(protect);
 // ─── SHARED ──────────────────────────────────────────────────────────────────
 router.get('/leaderboard', getLeaderboard);
 router.get('/my-stats/:userId', getMyStats);
+router.post('/sync-progress', syncProgress);
 
 // ─── GUESS GAME ───────────────────────────────────────────────────────────────
 router.get('/guess-game/questions', getGuessGameQuestions);

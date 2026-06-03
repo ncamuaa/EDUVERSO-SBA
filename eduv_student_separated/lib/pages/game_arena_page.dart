@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/last_lesson_store.dart';
+import '../services/auth_service.dart';
 import '../services/lesson_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_size.dart';
@@ -44,6 +45,7 @@ List<Map<String, dynamic>> _guessQuestionsFromLesson(LessonDetail lesson) {
     final correctOption = q.options.reduce(
       (a, b) => a.orderIndex < b.orderIndex ? a : b,
     );
+    options.shuffle(rng);
     final answerIndex = options.indexOf(correctOption.text);
     final sentences = q.question
         .split(RegExp(r'(?<=[.?!])\s+'))
@@ -71,6 +73,7 @@ List<Map<String, dynamic>> _escapePuzzlesFromLesson(LessonDetail lesson) {
 
   const skipTokens = {'{', '}', '(', ')', '[', ']', ';', ':', ',', '//', '#', '---'};
 
+  final usedCodeStrs = <String>{};
   for (int pass = 0; pass < 4 && puzzles.length < 10; pass++) {
     for (final block in codeBlocks) {
       if (puzzles.length >= 10) break;
@@ -94,10 +97,13 @@ List<Map<String, dynamic>> _escapePuzzlesFromLesson(LessonDetail lesson) {
         answers.add(toBlank[i]);
       }
       final chips = [...answers, ...distractors]..shuffle(rng);
+      final puzzleKey = answers.join(',');
+      if (usedCodeStrs.contains(puzzleKey)) continue;
+      usedCodeStrs.add(puzzleKey);
       puzzles.add({
         'title': block.language != null ? '${block.language} Puzzle ${puzzles.length + 1}' : 'Code Puzzle ${puzzles.length + 1}',
         'description': 'Fill in the missing tokens. (Round ${puzzles.length + 1})',
-        'codeLines': codeStr,
+        'codeLines': codeStr.replaceAll('\\n', '\n').replaceAll('\\t', '  '),
         'answers': answers,
         'chips': chips.take(10).toList(),
       });
@@ -135,8 +141,26 @@ List<Map<String, dynamic>> _textPuzzlesFromLesson(LessonDetail lesson, {int targ
   }
 
   if (puzzles.isEmpty) {
-    for (int i = 0; i < target; i++) {
-      puzzles.add({'title': 'Lesson Recall ${i + 1}', 'description': 'What is the main topic of this lesson?', 'codeLines': 'The topic of this lesson is ___0___.', 'answers': [lesson.subject], 'chips': [lesson.subject, 'Math', 'Science', 'History', 'English', 'Art', 'Music', 'PE', 'Technology', 'Drama']});
+    // Use quiz questions as fill-in-the-blank instead
+    final rng2 = Random();
+    for (final q in lesson.quiz) {
+      if (puzzles.length >= target) break;
+      if (q.options.isEmpty) continue;
+      final correct = q.options.reduce((a, b) => a.orderIndex < b.orderIndex ? a : b);
+      final wrong = q.options.where((o) => o.id != correct.id).map((o) => o.text).toList();
+      final allChips = [correct.text, ...wrong]..shuffle(rng2);
+      final questionText = q.question.replaceAll(correct.text, '___0___');
+      puzzles.add({
+        'title': 'Fill the Blank ${puzzles.length + 1}',
+        'description': 'Complete the question with the correct answer.',
+        'codeLines': questionText,
+        'answers': [correct.text],
+        'chips': allChips.take(10).toList(),
+      });
+    }
+    // Last resort fallback
+    if (puzzles.isEmpty) {
+      puzzles.add({'title': 'Lesson Recall 1', 'description': 'What subject is this lesson?', 'codeLines': 'This lesson covers ___0___.', 'answers': [lesson.subject], 'chips': [lesson.subject, 'Math', 'Science', 'History', 'English', 'Art', 'Music', 'PE', 'Technology', 'Drama']});
     }
   }
   return puzzles.take(target).toList();
@@ -195,7 +219,9 @@ List<Map<String, dynamic>> _speedQuizFromLesson(LessonDetail lesson) {
     if (q.options.isEmpty) continue;
     final options     = q.options.map((o) => o.text).toList();
     final correctOpt  = q.options.reduce((a, b) => a.orderIndex < b.orderIndex ? a : b);
-    final answerIndex = options.indexOf(correctOpt.text);
+    final correctText = correctOpt.text;
+    options.shuffle(rng);
+    final answerIndex = options.indexOf(correctText);
     result.add({'question': q.question, 'options': options, 'answerIndex': answerIndex});
   }
   while (result.length < 8 && result.isNotEmpty) {
@@ -274,15 +300,37 @@ class GameArenaPage extends StatefulWidget {
 class _GameArenaPageState extends State<GameArenaPage> {
   int xp        = 0;
   int bestScore = 0;
+  List<Map<String, dynamic>> _leaderboard = [];
 
   @override
   void initState() { super.initState(); _load(); }
 
   Future<void> _load() async {
-    final lx = await GameProgressService.getXp();
-    final lb = await GameProgressService.getBestScore();
+    final lb2Raw = await GameProgressService.getLeaderboard();
+    final stats = await GameProgressService.getMyStats();
+    final lx = stats != null ? (stats['total_xp'] ?? 0) as int : await GameProgressService.getXp();
+    final lb = stats != null ? (stats['high_score'] ?? 0) as int : await GameProgressService.getBestScore();
     if (!mounted) return;
-    setState(() { xp = lx; bestScore = lb; });
+
+    // Deduplicate leaderboard by player_name — sum XP for same player
+    final Map<String, Map<String, dynamic>> merged = {};
+    for (final entry in lb2Raw) {
+      final name = (entry['player_name'] ?? '').toString();
+      if (merged.containsKey(name)) {
+        final existingXp = (merged[name]!['total_xp'] ?? 0) as int;
+        final entryXp = (entry['total_xp'] ?? 0) as int;
+        if (entryXp > existingXp) merged[name] = Map<String, dynamic>.from(entry);
+      } else {
+        merged[name] = Map<String, dynamic>.from(entry);
+      }
+    }
+
+    // Re-sort by total_xp descending
+    final lb2 = merged.values.toList()
+      ..sort((a, b) => ((b['total_xp'] ?? 0) as int)
+          .compareTo((a['total_xp'] ?? 0) as int));
+
+    setState(() { xp = lx; bestScore = lb; _leaderboard = lb2; });
   }
 
   int get level          => (xp ~/ 200) + 1;
@@ -393,16 +441,22 @@ class _GameArenaPageState extends State<GameArenaPage> {
   }
 
   List<Widget> _buildLeaderboard(double w) {
-    final entries = [('You', xp), ('Alyssa', 850), ('Mark', 720), ('Jamie', 640)]..sort((a, b) => b.$2.compareTo(a.$2));
-    return entries.asMap().entries.map((e) {
-      final rank = e.key + 1;
-      final p    = e.value;
+    if (_leaderboard.isEmpty) {
+      return [Text('No leaderboard data yet.', style: TextStyle(fontSize: w * 0.034, color: Colors.white38))];
+    }
+    final myName = AuthService.cachedUser?['full_name'] ?? '';
+    return _leaderboard.asMap().entries.map((e) {
+      final rank  = e.key + 1;
+      final entry = e.value;
+      final name  = (entry['player_name'] ?? 'Player $rank').toString();
+      final pts   = entry['total_xp'] ?? 0;
+      final isMe  = myName.isNotEmpty && myName == name;
       return Padding(
         padding: EdgeInsets.only(bottom: w * 0.025),
         child: Row(children: [
           SizedBox(width: w * 0.07, child: Text('#$rank', style: TextStyle(fontSize: w * 0.038, color: kYellow, fontWeight: FontWeight.bold))),
-          Expanded(child: Text(p.$1, style: TextStyle(fontSize: w * 0.038, fontWeight: FontWeight.w600, color: Colors.white))),
-          Text('${p.$2} XP', style: TextStyle(fontSize: w * 0.035, color: Colors.white70)),
+          Expanded(child: Text(isMe ? 'You' : name, style: TextStyle(fontSize: w * 0.038, fontWeight: isMe ? FontWeight.w800 : FontWeight.w600, color: isMe ? kPurple : Colors.white))),
+          Text('$pts XP', style: TextStyle(fontSize: w * 0.035, color: Colors.white70)),
         ]),
       );
     }).toList();
@@ -460,12 +514,15 @@ class GameResultPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final w   = AppSize.w(context);
     final pct = total > 0 ? (correct * 100 ~/ total) : 0;
+    final nav = Navigator.of(context);
 
     return StudentPageBase(
       title: 'Results',
-      child: Padding(
+      showBack: false,
+      child: SingleChildScrollView(
         padding: EdgeInsets.all(w * 0.07),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          SizedBox(height: w * 0.05),
           Text(emoji, style: TextStyle(fontSize: w * 0.18, decoration: TextDecoration.none)),
           SizedBox(height: w * 0.04),
           Text(title, style: TextStyle(fontSize: w * 0.065, fontWeight: FontWeight.w800, color: Colors.white), textAlign: TextAlign.center),
@@ -486,11 +543,26 @@ class GameResultPage extends StatelessWidget {
             width: double.infinity,
             height: w * 0.13,
             child: ElevatedButton(
-              onPressed: onHome,
+              onPressed: () => nav.pop(),
               style: ElevatedButton.styleFrom(backgroundColor: kPurple, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 0),
-              child: Text('Back to Arena', style: TextStyle(fontSize: w * 0.04, fontWeight: FontWeight.w700, color: Colors.white)),
+              child: Text('🎮  Back to Arena', style: TextStyle(fontSize: w * 0.04, fontWeight: FontWeight.w700, color: Colors.white)),
             ),
           ),
+          SizedBox(height: w * 0.03),
+          SizedBox(
+            width: double.infinity,
+            height: w * 0.13,
+            child: ElevatedButton(
+              onPressed: () => nav.popUntil((r) => r.isFirst),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kWhite08,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: Colors.white24)),
+                elevation: 0,
+              ),
+              child: Text('📚  Back to Modules', style: TextStyle(fontSize: w * 0.04, fontWeight: FontWeight.w700, color: Colors.white70)),
+            ),
+          ),
+          SizedBox(height: w * 0.05),
         ]),
       ),
     );
@@ -578,10 +650,9 @@ class _EscapeTheProgramPageState extends State<EscapeTheProgramPage> {
     for (int i = 0; i < _answers.length; i++) { if (filled[i] == _answers[i]) correct++; }
     _totalCorrect += correct;
     _totalAnswers += _answers.length;
-    await GameProgressService.addXp(correct * 10);
-    await GameProgressService.saveBestScore(_totalAnswers > 0 ? (_totalCorrect * 100 ~/ _totalAnswers) : 0);
     if (correct > 0) {
       await XpHistory.addEntry(xp: correct * 10, reason: 'Escape The Program – ${widget.lesson.title} (Puzzle ${puzzleIdx + 1})');
+      await GameProgressService.addXp(correct * 10, gameType: 'escape_the_program');
     }
     setState(() => submitted = true);
   }
@@ -595,7 +666,7 @@ class _EscapeTheProgramPageState extends State<EscapeTheProgramPage> {
       title: finalPct == 100 ? 'Escaped!' : finalPct >= 50 ? 'Almost There!' : 'Keep Practicing!',
       subtitle: finalPct == 100 ? 'Perfect — you fixed every blank!' : 'Some blanks were wrong. Review and retry.',
       xpEarned: _totalCorrect * 10, correct: _totalCorrect, total: _totalAnswers,
-      onHome: () => Navigator.popUntil(context, (r) => r.isFirst),
+      onHome: () {},
     )));
   }
 
@@ -648,7 +719,7 @@ class _EscapeTheProgramPageState extends State<EscapeTheProgramPage> {
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: w * 0.035, vertical: w * 0.02),
                 decoration: BoxDecoration(color: chipUsed[ci] ? kWhite08 : const Color(0xFF1E1E3A), border: Border.all(color: chipUsed[ci] ? kWhite12 : const Color(0xFF5A54CC)), borderRadius: BorderRadius.circular(10)),
-                child: Text(_chips[ci], style: TextStyle(fontFamily: 'monospace', fontSize: w * 0.033, color: chipUsed[ci] ? Colors.white60 : Colors.white, fontWeight: FontWeight.w600, decoration: TextDecoration.none)),
+                child: Text(_chips[ci].replaceAll('\n', ' ').replaceAll('\\n', ' ').trim(), style: TextStyle(fontFamily: 'monospace', fontSize: w * 0.033, color: chipUsed[ci] ? Colors.white60 : Colors.white, fontWeight: FontWeight.w600, decoration: TextDecoration.none)),
               ),
             ),
           );
@@ -663,28 +734,52 @@ class _EscapeTheProgramPageState extends State<EscapeTheProgramPage> {
 
   Widget _buildCodeWidget(List<_Seg> segs) {
     const keywords = {'function', 'let', 'const', 'var', 'for', 'of', 'in', 'if', 'else', 'return', 'class', 'new', 'this', 'import', 'export', 'def', 'while', 'True', 'False', 'None', 'and', 'or', 'not', 'pass', 'break', 'continue'};
-    final spans = <InlineSpan>[];
+    // Group segs into lines split by newline
+    final lines = <List<_Seg>>[];
+    var currentLine = <_Seg>[];
     for (final seg in segs) {
       if (!seg.isBlank) {
-        Color c = Colors.white;
-        if (keywords.contains(seg.text.trim())) c = const Color(0xFFA78BFA);
-        if (RegExp(r'^\d+$').hasMatch(seg.text.trim())) c = const Color(0xFFFBBF24);
-        if (seg.text.trim().startsWith('//') || seg.text.trim().startsWith('#')) c = const Color(0xFF555580);
-        spans.add(TextSpan(text: seg.text, style: TextStyle(color: c, decoration: TextDecoration.none)));
+        final parts = seg.text.split('\n');
+        for (int i = 0; i < parts.length; i++) {
+          if (i > 0) { lines.add(currentLine); currentLine = []; }
+          if (parts[i].isNotEmpty) currentLine.add(_Seg.text(parts[i]));
+        }
       } else {
-        final bi  = seg.blankIndex;
-        final val = filled[bi];
-        final bc  = _blankColor(bi);
-        spans.add(WidgetSpan(alignment: PlaceholderAlignment.middle, child: GestureDetector(
-          onTap: () => val != null ? _clearBlank(bi) : _tapBlank(bi),
-          child: AnimatedContainer(duration: const Duration(milliseconds: 150), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-            decoration: BoxDecoration(color: bc.withOpacity(0.18), border: Border.all(color: bc, width: 1.5), borderRadius: BorderRadius.circular(7)),
-            child: Text(val ?? '  ?  ', style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: bc, fontWeight: FontWeight.w700, decoration: TextDecoration.none)),
-          ),
-        )));
+        currentLine.add(seg);
       }
     }
-    return RichText(text: TextSpan(style: const TextStyle(fontFamily: 'monospace', fontSize: 13, height: 1.75, decoration: TextDecoration.none), children: spans));
+    if (currentLine.isNotEmpty) lines.add(currentLine);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: lines.map((lineSegs) {
+        final spans = <InlineSpan>[];
+        for (final seg in lineSegs) {
+          if (!seg.isBlank) {
+            Color c = Colors.white;
+            if (keywords.contains(seg.text.trim())) c = const Color(0xFFA78BFA);
+            if (RegExp(r'^\d+\$').hasMatch(seg.text.trim())) c = const Color(0xFFFBBF24);
+            if (seg.text.trim().startsWith('//') || seg.text.trim().startsWith('#')) c = const Color(0xFF555580);
+            spans.add(TextSpan(text: seg.text, style: TextStyle(color: c, decoration: TextDecoration.none)));
+          } else {
+            final bi  = seg.blankIndex;
+            final val = filled[bi];
+            final bc  = _blankColor(bi);
+            spans.add(WidgetSpan(alignment: PlaceholderAlignment.middle, child: GestureDetector(
+              onTap: () => val != null ? _clearBlank(bi) : _tapBlank(bi),
+              child: AnimatedContainer(duration: const Duration(milliseconds: 150), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(color: bc.withOpacity(0.18), border: Border.all(color: bc, width: 1.5), borderRadius: BorderRadius.circular(7)),
+                child: Text(val ?? '  ?  ', style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: bc, fontWeight: FontWeight.w700, decoration: TextDecoration.none)),
+              ),
+            )));
+          }
+        }
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: RichText(text: TextSpan(style: const TextStyle(fontFamily: 'monospace', fontSize: 13, height: 1.6, decoration: TextDecoration.none), children: spans)),
+        );
+      }).toList(),
+    );
   }
 }
 
@@ -740,16 +835,16 @@ class _GuessGamePageState extends State<GuessGamePage> {
   Future<void> _finish() async {
     final pct    = (correct * 100 ~/ total);
     final earned = correct * 15;
-    await GameProgressService.addXp(earned);
-    await GameProgressService.saveBestScore(pct);
     if (earned > 0) await XpHistory.addEntry(xp: earned, reason: 'Guess Game – ${widget.lesson.title} ($correct/$total correct)');
+      await GameProgressService.addXp(earned, gameType: 'guess_game');
+      await GameProgressService.saveBestScore(pct, gameType: 'guess_game');
     if (!mounted) return;
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => GameResultPage(
       emoji: pct >= 80 ? '🏆' : pct >= 60 ? '👍' : '💪',
       title: pct >= 80 ? 'Genius!' : pct >= 60 ? 'Good Job!' : 'Keep Practicing!',
       subtitle: pct >= 80 ? 'You identified every concept perfectly.' : 'Review the concepts you missed and try again.',
       xpEarned: earned, correct: correct, total: total,
-      onHome: () => Navigator.popUntil(context, (r) => r.isFirst),
+      onHome: () {},
     )));
   }
 
@@ -846,16 +941,16 @@ class _WordScramblePageState extends State<WordScramblePage> {
   Future<void> _next() async {
     if (_isLast) {
       final earned = _score * 12;
-      await GameProgressService.addXp(earned);
-      await GameProgressService.saveBestScore(_score * 100 ~/ _words.length);
       if (earned > 0) await XpHistory.addEntry(xp: earned, reason: 'Word Scramble – ${widget.lesson.title} ($_score/${_words.length} correct)');
+      await GameProgressService.addXp(earned, gameType: 'word_scramble');
+      await GameProgressService.saveBestScore(_score * 100 ~/ _words.length, gameType: 'word_scramble');
       if (!mounted) return;
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => GameResultPage(
         emoji: _score == _words.length ? '🏆' : _score >= _words.length ~/ 2 ? '👍' : '💪',
         title: _score == _words.length ? 'Perfect!' : _score >= _words.length ~/ 2 ? 'Good Job!' : 'Keep Practicing!',
         subtitle: 'You unscrambled $_score out of ${_words.length} words.',
         xpEarned: earned, correct: _score, total: _words.length,
-        onHome: () => Navigator.popUntil(context, (r) => r.isFirst),
+        onHome: () {},
       )));
       return;
     }
@@ -963,16 +1058,16 @@ class _FlashCardsPageState extends State<FlashCardsPage> with SingleTickerProvid
 
   Future<void> _finish() async {
     final earned = _known * 8;
-    await GameProgressService.addXp(earned);
-    await GameProgressService.saveBestScore(_known * 100 ~/ _cards.length);
     if (earned > 0) await XpHistory.addEntry(xp: earned, reason: 'Flash Cards – ${widget.lesson.title} ($_known/${_cards.length} known)');
+      await GameProgressService.addXp(earned, gameType: 'flash_cards');
+      await GameProgressService.saveBestScore(_known * 100 ~/ _cards.length, gameType: 'flash_cards');
     if (!mounted) return;
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => GameResultPage(
       emoji: _known == _cards.length ? '🧠' : _known >= _cards.length ~/ 2 ? '👍' : '📖',
       title: _known == _cards.length ? 'Mastered!' : _known >= _cards.length ~/ 2 ? 'Good Progress!' : 'Keep Reviewing!',
       subtitle: 'You knew $_known out of ${_cards.length} cards.',
       xpEarned: earned, correct: _known, total: _cards.length,
-      onHome: () => Navigator.popUntil(context, (r) => r.isFirst),
+      onHome: () {},
     )));
   }
 
@@ -1114,16 +1209,16 @@ class _SpeedQuizPageState extends State<SpeedQuizPage> with SingleTickerProvider
   Future<void> _finish() async {
     final pct    = (_correct * 100 ~/ _questions.length);
     final earned = _correct * 20;
-    await GameProgressService.addXp(earned);
-    await GameProgressService.saveBestScore(pct);
     if (earned > 0) await XpHistory.addEntry(xp: earned, reason: 'Speed Quiz – ${widget.lesson.title} ($_correct/${_questions.length} correct)');
+      await GameProgressService.addXp(earned, gameType: 'speed_quiz');
+      await GameProgressService.saveBestScore(pct, gameType: 'speed_quiz');
     if (!mounted) return;
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => GameResultPage(
       emoji: pct >= 80 ? '⚡' : pct >= 50 ? '🔥' : '💨',
       title: pct >= 80 ? 'Lightning Fast!' : pct >= 50 ? 'Hot Streak!' : 'Too Slow!',
       subtitle: 'You answered $_correct out of ${_questions.length} correctly.',
       xpEarned: earned, correct: _correct, total: _questions.length,
-      onHome: () => Navigator.popUntil(context, (r) => r.isFirst),
+      onHome: () {},
     )));
   }
 
@@ -1259,16 +1354,16 @@ class _TrueOrFalsePageState extends State<TrueOrFalsePage> with SingleTickerProv
   Future<void> _finish() async {
     final pct    = (_correct * 100 ~/ _cards.length);
     final earned = _correct * 10;
-    await GameProgressService.addXp(earned);
-    await GameProgressService.saveBestScore(pct);
     if (earned > 0) await XpHistory.addEntry(xp: earned, reason: 'True or False – ${widget.lesson.title} ($_correct/${_cards.length} correct)');
+      await GameProgressService.addXp(earned, gameType: 'true_or_false');
+      await GameProgressService.saveBestScore(pct, gameType: 'true_or_false');
     if (!mounted) return;
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => GameResultPage(
       emoji: pct >= 80 ? '✅' : pct >= 50 ? '🤔' : '❌',
       title: pct >= 80 ? 'Sharp Mind!' : pct >= 50 ? 'Not Bad!' : 'Keep Learning!',
       subtitle: 'You got $_correct out of ${_cards.length} correct.',
       xpEarned: earned, correct: _correct, total: _cards.length,
-      onHome: () => Navigator.popUntil(context, (r) => r.isFirst),
+      onHome: () {},
     )));
   }
 
@@ -1438,16 +1533,16 @@ class _MemoryMatchPageState extends State<MemoryMatchPage> {
     final secs   = _watch.elapsed.inSeconds;
     final bonus  = (secs < 30) ? 20 : (secs < 60) ? 10 : 0;
     final earned = 40 + bonus; // base + speed bonus
-    await GameProgressService.addXp(earned);
-    await GameProgressService.saveBestScore(100);
     await XpHistory.addEntry(xp: earned, reason: 'Memory Match – ${widget.lesson.title} (${_moves} moves, ${secs}s)');
+      await GameProgressService.addXp(earned, gameType: 'memory_match');
+      await GameProgressService.saveBestScore(100, gameType: 'memory_match');
     if (!mounted) return;
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => GameResultPage(
       emoji: secs < 30 ? '🧠' : secs < 60 ? '👍' : '🐢',
       title: secs < 30 ? 'Memory Master!' : secs < 60 ? 'Well Done!' : 'You Got There!',
       subtitle: 'Completed in $_moves moves and ${secs}s.${bonus > 0 ? ' +$bonus speed bonus!' : ''}',
       xpEarned: earned, correct: _totalPairs, total: _totalPairs,
-      onHome: () => Navigator.popUntil(context, (r) => r.isFirst),
+      onHome: () {},
     )));
   }
 

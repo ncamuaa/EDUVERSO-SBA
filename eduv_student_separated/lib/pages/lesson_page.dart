@@ -11,6 +11,8 @@ import '../theme/app_theme.dart';
 import '../utils/app_size.dart';
 import '../services/last_lesson_store.dart';
 import '../utils/xp_history.dart';
+import '../services/feedback_service.dart';
+import 'feedback_page.dart';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // LESSON PAGE
@@ -78,25 +80,20 @@ class _LessonPageState extends State<LessonPage> with TickerProviderStateMixin {
     if (_lesson == null || _lesson!.content.isEmpty) return;
 
     final prefs = await SharedPreferences.getInstance();
- await prefs.setString('last_module_title', _lesson!.moduleTitle); // ← add
-  await prefs.setString('last_module_subject', _lesson!.subject);   // ← add
-  await prefs.setInt('last_module_id', _lesson!.moduleId);          
+    await prefs.setString('last_module_title', _lesson!.moduleTitle);
+    await prefs.setString('last_module_subject', _lesson!.subject);
+    await prefs.setInt('last_module_id', _lesson!.moduleId);
 
-    // Save dashboard progress percentage.
     await prefs.setDouble(
       'last_module_progress',
       (_currentSlide + 1) / _lesson!.content.length,
     );
 
-    // Save the exact slide position for this specific lesson.
-    // This prevents another lesson, like "Introduction to Microsoft",
-    // from reusing the same slide position.
     await prefs.setInt(
       'last_slide_index_${widget.lessonId}',
       _currentSlide,
     );
 
-    // Save the exact lesson to continue later.
     await prefs.setInt('last_lesson_id', widget.lessonId);
     await prefs.setString('last_lesson_title', widget.lessonTitle);
   }
@@ -111,9 +108,6 @@ class _LessonPageState extends State<LessonPage> with TickerProviderStateMixin {
       final lesson = await LessonService.getLessonById(widget.lessonId);
       final prefs = await SharedPreferences.getInstance();
 
-      // Load the saved slide only for this specific lesson.
-      // Example: Purposive Communication will not open the slide saved
-      // for Introduction to Microsoft.
       final savedSlide = prefs.getInt('last_slide_index_${widget.lessonId}') ?? 0;
       final safeSlide = lesson.content.isEmpty
           ? 0
@@ -947,6 +941,7 @@ class _QuizSectionState extends State<_QuizSection>
   int _current = 0;
   final Map<int, int> _selectedOptionIds = {};
   CompletionResult? _result;
+  String? _aiFeedback;
   bool _submitting = false;
   String? _submitError;
 
@@ -1029,41 +1024,106 @@ class _QuizSectionState extends State<_QuizSection>
     }
   }
 
- Future<void> _submit() async {
-  setState(() {
-    _submitting = true;
-    _submitError = null;
-  });
-  try {
-    final result = await LessonService.completeLesson(
-        widget.lessonId, _selectedOptionIds);
-    if (!mounted) return;
+  Future<void> _submit() async {
+    setState(() {
+      _submitting = true;
+      _submitError = null;
+    });
+    try {
+      final result = await LessonService.completeLesson(
+          widget.lessonId, _selectedOptionIds);
+      if (!mounted) return;
 
-    if (result.xpGained > 0) {
-      await XpHistory.addEntry(
-        xp: result.xpGained,
-        reason: 'Quiz: ${widget.lessonTitle} (${result.correct}/${result.total} correct)',
-      );
+      if (result.xpGained > 0) {
+        await XpHistory.addEntry(
+          xp: result.xpGained,
+          reason: 'Quiz: ${widget.lessonTitle} (${result.correct}/${result.total} correct)',
+        );
+      }
+
+      setState(() {
+        _result = result;
+        _submitting = false;
+      });
+      _generateAndSaveFeedback(result);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitError = e.toString().replaceFirst('Exception: ', '');
+        _submitting = false;
+      });
     }
-
-    setState(() {
-      _result = result;
-      _submitting = false;
-    });
-  } catch (e) {
-    if (!mounted) return;
-    setState(() {
-      _submitError = e.toString().replaceFirst('Exception: ', '');
-      _submitting = false;
-    });
   }
-}
+
+  Future<void> _generateAndSaveFeedback(CompletionResult result) async {
+    try {
+      final wrongItems = <String>[];
+      for (final q in widget.questions) {
+        final pickedId = _selectedOptionIds[q.id];
+        final correctId = result.correctOptionIds?[q.id];
+        if (pickedId != null && pickedId != correctId) {
+          final picked = q.options.where((o) => o.id == pickedId).firstOrNull;
+          final correct = correctId != null
+              ? q.options.where((o) => o.id == correctId).firstOrNull
+              : null;
+          wrongItems.add(
+            'Q: ${q.question} | Your answer: ${picked?.text ?? "-"} | Correct: ${correct?.text ?? "-"}',
+          );
+        }
+      }
+
+      String prompt;
+      if (wrongItems.isEmpty) {
+        prompt = 'A student got a perfect score on a quiz about "${widget.lessonTitle}". Write 2-3 sentences of encouraging feedback. No markdown.';
+      } else {
+        final wrongText = wrongItems.join(', ');
+        prompt = 'A student completed a quiz about "${widget.lessonTitle}" and got ${result.correct}/${result.total} correct. Wrong answers: $wrongText. Write 3-4 sentences of friendly encouraging feedback on what to review. No markdown.';
+      }
+
+      final groqRes = await http.post(
+        Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer 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',
+        },
+        body: jsonEncode({
+          'model': 'llama-3.3-70b-versatile',
+          'max_tokens': 300,
+          'messages': [
+            {'role': 'user', 'content': prompt}
+          ],
+        }),
+      );
+
+      if (groqRes.statusCode == 200) {
+        final groqData = jsonDecode(groqRes.body);
+        final feedbackText = groqData['choices'][0]['message']['content'] as String;
+        final cachedUser = await AuthService.getCachedUser();
+        final userId = cachedUser?['id']?.toString() ?? '';
+        if (userId.isNotEmpty) {
+          final rating = result.total > 0
+              ? ((result.correct / result.total) * 5).round().clamp(1, 5)
+              : 3;
+          await FeedbackService.createFeedback(
+            userId: userId,
+            content: 'Quiz Feedback for "${widget.lessonTitle}":\n\n$feedbackText',
+            rating: rating,
+          );
+        }
+        if (mounted) setState(() => _aiFeedback = feedbackText);
+      }
+    } catch (e, st) {
+      debugPrint('AI feedback error: $e');
+      debugPrint('Stack: $st');
+    }
+  }
 
   Future<void> _retake() async {
     await _cardCtrl.reverse();
     setState(() {
       _current = 0;
       _selectedOptionIds.clear();
+      _aiFeedback = null;
       _result = null;
       _submitError = null;
     });
@@ -1081,6 +1141,7 @@ class _QuizSectionState extends State<_QuizSection>
         result: _result!,
         questions: widget.questions,
         selectedOptionIds: _selectedOptionIds,
+        aiFeedback: _aiFeedback,
         onRetake: _retake,
         onBack: widget.onBack,
       );
@@ -1088,7 +1149,6 @@ class _QuizSectionState extends State<_QuizSection>
 
     return Column(
       children: [
-        // ── Quiz top bar ──────────────────────────────────────────
         _QuizTopBar(
           w: w,
           current: _current,
@@ -1098,8 +1158,6 @@ class _QuizSectionState extends State<_QuizSection>
           lessonTitle: widget.lessonTitle,
           onBack: widget.onBack,
         ),
-
-        // ── Submit error banner ───────────────────────────────────
         if (_submitError != null)
           Container(
             margin: EdgeInsets.symmetric(
@@ -1135,8 +1193,6 @@ class _QuizSectionState extends State<_QuizSection>
               ],
             ),
           ),
-
-        // ── Question card ─────────────────────────────────────────
         Expanded(
           child: FadeTransition(
             opacity: _cardFade,
@@ -1155,8 +1211,6 @@ class _QuizSectionState extends State<_QuizSection>
             ),
           ),
         ),
-
-        // ── Quiz bottom nav ───────────────────────────────────────
         _QuizBottomNav(
           w: w,
           answered: _answered,
@@ -1170,7 +1224,7 @@ class _QuizSectionState extends State<_QuizSection>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Quiz top bar — matches slide _TopBar exactly, green accent swapped to purple
+// Quiz top bar
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _QuizTopBar extends StatelessWidget {
@@ -1235,7 +1289,6 @@ class _QuizTopBar extends StatelessWidget {
                   ],
                 ),
               ),
-              // ✅ Matches the XP badge style from _TopBar
               Container(
                 padding: EdgeInsets.symmetric(
                     horizontal: w * 0.03, vertical: w * 0.012),
@@ -1265,7 +1318,6 @@ class _QuizTopBar extends StatelessWidget {
             ],
           ),
           SizedBox(height: w * 0.03),
-          // ✅ Same progress bar style as slides — purple→green gradient
           ClipRRect(
             borderRadius: BorderRadius.circular(99),
             child: Container(
@@ -1293,7 +1345,7 @@ class _QuizTopBar extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Question card — frosted glass card matching _TextSlide style
+// Question card
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _QuestionCard extends StatelessWidget {
@@ -1324,7 +1376,6 @@ class _QuestionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ✅ Badge pill — matches SLIDE X badge from _SlideCard
           Container(
             padding: EdgeInsets.symmetric(
                 horizontal: w * 0.03, vertical: w * 0.01),
@@ -1344,8 +1395,6 @@ class _QuestionCard extends StatelessWidget {
                 )),
           ),
           SizedBox(height: w * 0.04),
-
-          // ✅ Question text card — same frosted glass as _TextSlide
           Container(
             width: double.infinity,
             padding: EdgeInsets.all(w * 0.055),
@@ -1371,8 +1420,6 @@ class _QuestionCard extends StatelessWidget {
                 )),
           ),
           SizedBox(height: w * 0.04),
-
-          // ✅ Answer saved feedback — purple glow matching slide accent
           if (answered)
             ScaleTransition(
               scale: feedbackScale,
@@ -1412,8 +1459,6 @@ class _QuestionCard extends StatelessWidget {
                 ),
               ),
             ),
-
-          // Options
           ...question.options.map((opt) => _OptionTile(
                 w: w,
                 option: opt,
@@ -1428,7 +1473,7 @@ class _QuestionCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Option tile — purple selection matching slide accent colors
+// Option tile
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _OptionTile extends StatelessWidget {
@@ -1460,7 +1505,6 @@ class _OptionTile extends StatelessWidget {
         padding: EdgeInsets.symmetric(
             horizontal: w * 0.04, vertical: w * 0.038),
         decoration: BoxDecoration(
-          // ✅ Selected: purple glow card matching slide selection style
           color: _isSelected
               ? const Color(0xFFA56BFF).withOpacity(0.12)
               : Colors.white.withOpacity(0.04),
@@ -1483,7 +1527,6 @@ class _OptionTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // ✅ Letter circle — same style as slide chips
             Container(
               width: w * 0.09,
               height: w * 0.09,
@@ -1544,7 +1587,7 @@ class _OptionTile extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Quiz bottom nav — full gradient button always visible, dims when inactive
+// Quiz bottom nav
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _QuizBottomNav extends StatelessWidget {
@@ -1573,7 +1616,6 @@ class _QuizBottomNav extends StatelessWidget {
           width: double.infinity,
           height: w * 0.14,
           decoration: BoxDecoration(
-            // ✅ Matches _BottomNav gradient button exactly
             gradient: LinearGradient(
               colors: active
                   ? (isLast
@@ -1636,6 +1678,7 @@ class _QuizResultsView extends StatelessWidget {
     required this.result,
     required this.questions,
     required this.selectedOptionIds,
+    this.aiFeedback,
     required this.onRetake,
     required this.onBack,
   });
@@ -1644,6 +1687,7 @@ class _QuizResultsView extends StatelessWidget {
   final CompletionResult result;
   final List<QuizQuestion> questions;
   final Map<int, int> selectedOptionIds;
+  final String? aiFeedback;
   final VoidCallback onRetake;
   final VoidCallback onBack;
 
@@ -1677,7 +1721,6 @@ class _QuizResultsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // ✅ Header matches quiz top bar style
         Container(
           padding:
               EdgeInsets.fromLTRB(w * 0.04, w * 0.03, w * 0.04, w * 0.02),
@@ -1706,14 +1749,12 @@ class _QuizResultsView extends StatelessWidget {
             ],
           ),
         ),
-
         Expanded(
           child: SingleChildScrollView(
             padding: EdgeInsets.symmetric(
                 horizontal: w * 0.045, vertical: w * 0.02),
             child: Column(
               children: [
-                // ✅ Score card — frosted glass matching TextSlide
                 Container(
                   width: double.infinity,
                   padding: EdgeInsets.all(w * 0.06),
@@ -1732,7 +1773,6 @@ class _QuizResultsView extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      // Grade circle with gradient border
                       Container(
                         width: w * 0.28,
                         height: w * 0.28,
@@ -1806,8 +1846,6 @@ class _QuizResultsView extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: w * 0.04),
-
-                // Stats row
                 Row(
                   children: [
                     _StatBox(
@@ -1832,14 +1870,12 @@ class _QuizResultsView extends StatelessWidget {
                         icon: '⚡'),
                   ],
                 ),
+                if (aiFeedback != null) _AiFeedbackCard(w: w, text: aiFeedback!),
                 SizedBox(height: w * 0.04),
-
-                // Review section header — matches slide badge style
                 Row(
                   children: [
                     Container(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: w * 0.03, vertical: w * 0.01),
+                      padding: EdgeInsets.symmetric(horizontal: w * 0.03, vertical: w * 0.01),
                       decoration: BoxDecoration(
                         color: const Color(0xFFA56BFF).withOpacity(0.15),
                         borderRadius: BorderRadius.circular(20),
@@ -1859,8 +1895,6 @@ class _QuizResultsView extends StatelessWidget {
                   ],
                 ),
                 SizedBox(height: w * 0.025),
-
-                // Review items
                 ...questions.map((q) {
                   final pickedId = selectedOptionIds[q.id];
                   final correctId = result.correctOptionIds?[q.id];
@@ -1964,8 +1998,6 @@ class _QuizResultsView extends StatelessWidget {
             ),
           ),
         ),
-
-        // ✅ Bottom buttons — match _BottomNav style exactly
         Container(
           padding: EdgeInsets.fromLTRB(
               w * 0.045, w * 0.02, w * 0.045, w * 0.05),
@@ -1992,36 +2024,67 @@ class _QuizResultsView extends StatelessWidget {
               ),
               SizedBox(width: w * 0.03),
               Expanded(
-                child: GestureDetector(
-                  onTap: onBack,
-                  child: Container(
-                    height: w * 0.14,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF8A63FF), Color(0xFF4ECA8D)],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              const Color(0xFFA56BFF).withOpacity(0.35),
-                          blurRadius: 20,
-                          offset: const Offset(0, 4),
+                child: Column(
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const _FeedbackPageLauncher(),
                         ),
-                      ],
+                      ),
+                      child: Container(
+                        width: double.infinity,
+                        height: w * 0.12,
+                        margin: EdgeInsets.only(bottom: w * 0.02),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFA56BFF).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: const Color(0xFFA56BFF).withOpacity(0.5)),
+                        ),
+                        child: Center(
+                          child: Text('💬  View Feedback',
+                              style: TextStyle(
+                                  fontSize: w * 0.036,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFFA56BFF),
+                                  decoration: TextDecoration.none)),
+                        ),
+                      ),
                     ),
-                    child: Center(
-                      child: Text('Back to Lessons',
-                          style: TextStyle(
-                            fontSize: w * 0.04,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            decoration: TextDecoration.none,
-                          )),
+                    GestureDetector(
+                      onTap: onBack,
+                      child: Container(
+                        width: double.infinity,
+                        height: w * 0.14,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF8A63FF), Color(0xFF4ECA8D)],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFA56BFF).withOpacity(0.35),
+                              blurRadius: 20,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text('Back to Lessons',
+                              style: TextStyle(
+                                fontSize: w * 0.04,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                decoration: TextDecoration.none,
+                              )),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ],
@@ -2089,6 +2152,97 @@ class _StatBox extends StatelessWidget {
                 )),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Feedback page launcher
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FeedbackPageLauncher extends StatefulWidget {
+  const _FeedbackPageLauncher();
+
+  @override
+  State<_FeedbackPageLauncher> createState() => _FeedbackPageLauncherState();
+}
+
+class _FeedbackPageLauncherState extends State<_FeedbackPageLauncher> {
+  @override
+  void initState() {
+    super.initState();
+    AuthService.getCachedUser().then((u) {
+      if (!mounted) return;
+      final userId = u?['id']?.toString() ?? '';
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PeerFeedbackPage(userId: userId),
+        ),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const Scaffold(
+        backgroundColor: Color(0xFF0E0C2E),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFFA56BFF)),
+        ),
+      );
+}
+class _AiFeedbackCard extends StatelessWidget {
+  const _AiFeedbackCard({required this.w, required this.text});
+  final double w;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(w * 0.045),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFA56BFF).withOpacity(0.15),
+            const Color(0xFF6B8FFF).withOpacity(0.10),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFA56BFF).withOpacity(0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('🤖', style: TextStyle(fontSize: 18, decoration: TextDecoration.none)),
+              const SizedBox(width: 8),
+              Text(
+                'AI Feedback',
+                style: TextStyle(
+                  fontSize: w * 0.038,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFFA56BFF),
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: w * 0.025),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: w * 0.033,
+              color: Colors.white70,
+              height: 1.55,
+              decoration: TextDecoration.none,
+            ),
+          ),
+        ],
       ),
     );
   }

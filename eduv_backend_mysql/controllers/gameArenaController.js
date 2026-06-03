@@ -158,3 +158,24 @@ const submitEscapePuzzle = async (req, res) => {
 };
 
 module.exports = { getLeaderboard, getMyStats, getGuessGameQuestions, submitGuessGame, getEscapePuzzles, submitEscapePuzzle };
+const syncProgress = async (req, res) => {
+  const { userId, totalXp, highScore, gameType = 'overall' } = req.body;
+  if (!userId) return res.status(400).json({ success: false, message: 'Missing userId' });
+  try {
+    await db.query(
+      `INSERT INTO game_scores (user_id, game_type, high_score, total_xp, games_played)
+       VALUES ($1, $2, $3, $4, 1)
+       ON CONFLICT (user_id, game_type) DO UPDATE SET
+         high_score = GREATEST(game_scores.high_score, EXCLUDED.high_score),
+         total_xp = GREATEST(game_scores.total_xp, EXCLUDED.total_xp),
+         games_played = game_scores.games_played + 1,
+         updated_at = NOW()`,
+      [userId, gameType, highScore ?? 0, totalXp ?? 0]
+    );
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { getLeaderboard, getMyStats, getGuessGameQuestions, submitGuessGame, getEscapePuzzles, submitEscapePuzzle, syncProgress };

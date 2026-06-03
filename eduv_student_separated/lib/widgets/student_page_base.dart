@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import 'app_shell.dart';
 
 class StudentPageBase extends StatelessWidget {
-  const StudentPageBase({super.key, required this.title, required this.child, this.showBack = true});
+  const StudentPageBase({super.key, required this.title, required this.child, this.showBack = true, this.actions});
   final String title;
   final Widget child;
   final bool showBack;
+  final List<Widget>? actions;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +47,7 @@ class StudentPageBase extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 60), // ← was 76
+                  Row(children: actions ?? [const SizedBox(width: 60)]),
                 ],
               ),
             ),

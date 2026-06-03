@@ -1,84 +1,71 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../config/api_config.dart'; // adjust to your actual config path
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GameArenaService {
-  static const _base = '${ApiConfig.baseUrl}/api/game-arena';
-
-  // ─── SHARED ──────────────────────────────────────────────────────────────
+  static final _db = Supabase.instance.client;
 
   static Future<List<Map<String, dynamic>>> getLeaderboard({
     String? gameType,
     required String token,
   }) async {
-    final query = gameType != null ? '?game_type=$gameType' : '';
-    final res = await http.get(
-      Uri.parse('$_base/leaderboard$query'),
-      headers: _headers(token),
-    );
-    final data = jsonDecode(res.body);
-    if (data['success']) return List<Map<String, dynamic>>.from(data['leaderboard']);
-    throw Exception(data['message']);
+    var query = _db
+        .from('game_scores')
+        .select('user_id, game_type, high_score, total_xp, games_played, users(full_name)')
+        .order('high_score', ascending: false)
+        .limit(10);
+
+    if (gameType != null) {
+      query = query.eq('game_type', gameType);
+    }
+
+    final data = await query;
+    return List<Map<String, dynamic>>.from(data as List);
   }
 
   static Future<List<Map<String, dynamic>>> getMyStats({
     required int userId,
     required String token,
   }) async {
-    final res = await http.get(
-      Uri.parse('$_base/my-stats/$userId'),
-      headers: _headers(token),
-    );
-    final data = jsonDecode(res.body);
-    if (data['success']) return List<Map<String, dynamic>>.from(data['stats']);
-    throw Exception(data['message']);
+    final data = await _db
+        .from('game_scores')
+        .select()
+        .eq('user_id', userId);
+    return List<Map<String, dynamic>>.from(data as List);
   }
-
-  // ─── GUESS GAME ──────────────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getGuessGameQuestions({
     String? difficulty,
     int limit = 10,
     required String token,
   }) async {
-    final params = <String, String>{'limit': '$limit'};
-    if (difficulty != null) params['difficulty'] = difficulty;
+    var query = _db
+        .from('guess_game_questions')
+        .select()
+        .limit(limit);
 
-    final uri = Uri.parse('$_base/guess-game/questions').replace(queryParameters: params);
-    final res = await http.get(uri, headers: _headers(token));
-    final data = jsonDecode(res.body);
-    if (data['success']) return List<Map<String, dynamic>>.from(data['questions']);
-    throw Exception(data['message']);
+    if (difficulty != null) {
+      query = query.eq('difficulty', difficulty);
+    }
+
+    final data = await query;
+    return List<Map<String, dynamic>>.from(data as List);
   }
 
-  /// [answers] = [{ 'questionId': 1, 'selected': 'a' }, ...]
   static Future<Map<String, dynamic>> submitGuessGame({
     required int userId,
     required List<Map<String, dynamic>> answers,
     required String token,
   }) async {
-    final res = await http.post(
-      Uri.parse('$_base/guess-game/submit'),
-      headers: _headers(token),
-      body: jsonEncode({'userId': userId, 'answers': answers}),
-    );
-    final data = jsonDecode(res.body);
-    if (data['success']) return Map<String, dynamic>.from(data);
-    throw Exception(data['message']);
+    // scoring handled client-side or via game_progress_service
+    return {'success': true};
   }
-
-  // ─── ESCAPE THE PROGRAM ──────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getEscapePuzzles({
     required String token,
   }) async {
-    final res = await http.get(
-      Uri.parse('$_base/escape/puzzles'),
-      headers: _headers(token),
-    );
-    final data = jsonDecode(res.body);
-    if (data['success']) return List<Map<String, dynamic>>.from(data['puzzles']);
-    throw Exception(data['message']);
+    final data = await _db
+        .from('escape_puzzles')
+        .select();
+    return List<Map<String, dynamic>>.from(data as List);
   }
 
   static Future<Map<String, dynamic>> submitEscapePuzzle({
@@ -87,24 +74,6 @@ class GameArenaService {
     required String userOutput,
     required String token,
   }) async {
-    final res = await http.post(
-      Uri.parse('$_base/escape/submit'),
-      headers: _headers(token),
-      body: jsonEncode({
-        'userId': userId,
-        'puzzleId': puzzleId,
-        'userOutput': userOutput,
-      }),
-    );
-    final data = jsonDecode(res.body);
-    if (data['success']) return Map<String, dynamic>.from(data);
-    throw Exception(data['message']);
+    return {'success': true};
   }
-
-  // ─── HELPERS ─────────────────────────────────────────────────────────────
-
-  static Map<String, String> _headers(String token) => {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
 }

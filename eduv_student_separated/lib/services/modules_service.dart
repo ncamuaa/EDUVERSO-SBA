@@ -1,7 +1,6 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'auth_service.dart';
-import '../config/api_config.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+// ── Models ────────────────────────────────────────────────────────────────────
 
 class Module {
   final int id;
@@ -22,14 +21,14 @@ class Module {
     required this.orderIndex,
   });
 
-  factory Module.fromJson(Map<String, dynamic> json) => Module(
-        id: json['id'] as int,
-        title: json['title'] as String,
-        description: json['description'] as String,
-        subject: json['subject'] as String,
-        gradeLevel: json['grade_level'] as String,
-        course: json['course'] as String,
-        orderIndex: json['order_index'] as int? ?? 0,
+  factory Module.fromJson(Map<String, dynamic> j) => Module(
+        id: j['id'] as int,
+        title: j['title'] as String,
+        description: j['description'] as String,
+        subject: j['subject'] as String,
+        gradeLevel: j['grade_level'] as String,
+        course: j['course'] as String,
+        orderIndex: j['order_index'] as int? ?? 0,
       );
 }
 
@@ -48,49 +47,40 @@ class ModulesResponse {
 }
 
 class ModulesService {
-  static const String _base = '${ApiConfig.baseUrl}/api/modules';
+  static final _supabase = Supabase.instance.client;
 
   static Future<ModulesResponse> getModules({
     String? subject,
     String? grade,
     String? course,
   }) async {
-    final token = await AuthService.getToken();
+    var query = _supabase
+        .from('modules')
+        .select()
+        .order('order_index', ascending: true);
 
-    final params = <String, String>{};
-    if (subject != null) params['subject'] = subject;
-    if (grade != null) params['grade'] = grade;
-    if (course != null) params['course'] = course;
+    final response = await query;
+    final all = (response as List)
+        .map((m) => Module.fromJson(m as Map<String, dynamic>))
+        .toList();
 
-    final uri = Uri.parse(_base).replace(queryParameters: params.isEmpty ? null : params); // 👈 fixed
+    // Filter client-side
+    final filtered = all.where((m) {
+      if (subject != null && m.subject != subject) return false;
+      if (grade != null && m.gradeLevel != grade) return false;
+      if (course != null && m.course != course) return false;
+      return true;
+    }).toList();
 
-    print('[ModulesService] GET $uri'); // 👈 debug
+    final subjects = all.map((m) => m.subject).toSet().toList()..sort();
+    final grades   = all.map((m) => m.gradeLevel).toSet().toList()..sort();
+    final courses  = all.map((m) => m.course).toSet().toList()..sort();
 
-    final response = await http.get(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+    return ModulesResponse(
+      modules: filtered,
+      subjects: subjects,
+      grades: grades,
+      courses: courses,
     );
-
-    print('[ModulesService] status: ${response.statusCode}'); // 👈 debug
-    print('[ModulesService] body: ${response.body}');         // 👈 debug
-
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-
-    if (response.statusCode == 200 && data['success'] == true) {
-      final filters = data['filters'] as Map<String, dynamic>;
-      return ModulesResponse(
-        modules: (data['modules'] as List)
-            .map((m) => Module.fromJson(m as Map<String, dynamic>))
-            .toList(),
-        subjects: List<String>.from(filters['subjects'] as List),
-        grades: List<String>.from(filters['grades'] as List),
-        courses: List<String>.from(filters['courses'] as List),
-      );
-    } else {
-      throw Exception(data['message'] ?? 'Failed to load modules');
-    }
   }
 }

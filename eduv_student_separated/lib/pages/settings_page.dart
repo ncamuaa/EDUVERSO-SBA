@@ -107,7 +107,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final user = await AuthService.getCachedUser();
     if (user == null || !mounted) return;
 
-    final fullName = user['fullName'] as String? ?? '';
+    final fullName = user['full_name'] as String? ?? '';
     final parts    = fullName.trim().split(' ');
 
     setState(() {

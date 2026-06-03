@@ -1,7 +1,4 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'auth_service.dart';
-import '../config/api_config.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FeedbackItem {
   final int id;
@@ -25,44 +22,56 @@ class FeedbackItem {
   factory FeedbackItem.fromJson(Map<String, dynamic> j) => FeedbackItem(
         id: j['id'] as int,
         category: j['category'] as String? ?? 'General',
-        title: j['title'] as String,
-        body: j['body'] as String,
-        rating: j['rating'] as int,
-        createdAt: j['created_at'] as String,
+        title: j['title'] as String? ?? '',
+        body: j['content'] as String? ?? '',
+        rating: j['rating'] as int? ?? 0,
+        createdAt: j['created_at'] as String? ?? '',
         giverName: j['giver_name'] as String? ?? '',
       );
 }
 
 class FeedbackService {
-  // Flutter Web uses localhost directly
-  static const String _base = '${ApiConfig.baseUrl}/api/feedback';
-  
-  static Future<Map<String, String>> get _headers async => {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${await AuthService.getToken()}',
-      };
+  static final _db = Supabase.instance.client;
 
   static Future<List<FeedbackItem>> getFeedback({
-    required int userId,
+    required String userId,
     String? search,
   }) async {
-    final uri = Uri.parse(
-      '$_base/$userId${search != null && search.isNotEmpty ? '?search=$search' : ''}',
-    );
+    var query = _db
+        .from('feedback')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
 
-    print('[FeedbackService] GET $uri'); // 👈 debug
+    final List data = await query;
 
-    final res = await http.get(uri, headers: await _headers);
+    var items = data.map((f) => FeedbackItem.fromJson(f as Map<String, dynamic>)).toList();
 
-    print('[FeedbackService] status: ${res.statusCode}'); // 👈 debug
-    print('[FeedbackService] body: ${res.body}');         // 👈 debug
-
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
-    if (res.statusCode == 200 && data['success'] == true) {
-      return (data['data'] as List)
-          .map((f) => FeedbackItem.fromJson(f as Map<String, dynamic>))
-          .toList();
+    if (search != null && search.isNotEmpty) {
+      final q = search.toLowerCase();
+      items = items.where((f) =>
+        f.body.toLowerCase().contains(q) ||
+        f.title.toLowerCase().contains(q) ||
+        f.giverName.toLowerCase().contains(q)
+      ).toList();
     }
-    throw Exception(data['message'] ?? 'Failed to load feedback');
+
+    return items;
+  }
+
+  static Future<void> createFeedback({
+    required String userId,
+    required String content,
+    required int rating,
+  }) async {
+    await _db.from('feedback').insert({
+      'user_id': userId,
+      'content': content,
+      'rating': rating,
+    });
+  }
+
+  static Future<void> deleteFeedback({required int feedbackId}) async {
+    await _db.from('feedback').delete().eq('id', feedbackId);
   }
 }

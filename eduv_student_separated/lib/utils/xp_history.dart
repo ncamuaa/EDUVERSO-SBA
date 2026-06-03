@@ -1,32 +1,52 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class XpHistory {
-  static const _key = 'xp_history';
+  static final _db = Supabase.instance.client;
+
+  static String? get _userId => _db.auth.currentUser?.id;
 
   static Future<void> addEntry({
     required int xp,
     required String reason,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getStringList(_key) ?? [];
-    final entry = jsonEncode({
-      'xp': xp,
-      'reason': reason,
-      'timestamp': DateTime.now().toIso8601String(),
-    });
-    raw.insert(0, entry); // newest first
-    await prefs.setStringList(_key, raw.take(50).toList()); // keep last 50
+    final userId = _userId;
+    if (userId == null) return;
+    try {
+      await _db.from('xp_history').insert({
+        'user_id': userId,
+        'xp': xp,
+        'reason': reason,
+      });
+    } catch (e) {
+      // fail silently
+    }
   }
 
   static Future<List<Map<String, dynamic>>> getEntries() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getStringList(_key) ?? [];
-    return raw.map((e) => jsonDecode(e) as Map<String, dynamic>).toList();
+    final userId = _userId;
+    if (userId == null) return [];
+    try {
+      final rows = await _db
+          .from('xp_history')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at', ascending: false)
+          .limit(50);
+      return (rows as List).map((r) => {
+        'xp': r['xp'] as int,
+        'reason': r['reason'] as String,
+        'timestamp': r['created_at'] as String,
+      }).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   static Future<void> clear() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_key);
+    final userId = _userId;
+    if (userId == null) return;
+    try {
+      await _db.from('xp_history').delete().eq('user_id', userId);
+    } catch (_) {}
   }
 }
