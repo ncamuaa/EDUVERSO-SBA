@@ -28,24 +28,27 @@ export default function Games() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('game_scores')
-          .select('*, users(full_name)')
-          .order('high_score', { ascending: false });
+  const fetchData = async () => {
+    try {
+      const [{ data: scores }, { data: users }] = await Promise.all([
+        supabase.from('game_scores').select('*').order('high_score', { ascending: false }),
+        supabase.from('users').select('id, full_name'),
+      ]);
 
-        if (!error) setLeaderboard(data.map(d => ({
-          ...d,
-          player_name: d.users?.full_name || 'Unknown',
+      if (scores) {
+        setLeaderboard(scores.map(s => ({
+          ...s,
+          player_name: users?.find(u => u.id === s.user_id)?.full_name || 'Unknown',
         })));
-      } catch (err) {
-        console.error('Failed to fetch game data:', err);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (err) {
+      console.error('Failed to fetch game data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
