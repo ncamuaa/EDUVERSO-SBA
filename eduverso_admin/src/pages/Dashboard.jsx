@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Users, BookOpen, Gamepad2, TrendingUp, Star, Zap, Award } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { Users, BookOpen, Gamepad2, TrendingUp, Star, Zap, Award, UserPlus } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/Card';
 import { supabase } from '../lib/supabase';
@@ -16,9 +16,8 @@ function getGreeting() {
 
 export default function Dashboard() {
   const [stats, setStats]             = useState(null);
-  const [activity, setActivity]       = useState([]);
   const [topStudents, setTopStudents] = useState([]);
-  const [modules, setModules]         = useState([]);
+  const [registrations, setRegistrations] = useState([]);
   const [loading, setLoading]         = useState(true);
   const [hoveredStudent, setHoveredStudent] = useState(null);
   const [newBadges, setNewBadges]     = useState(0);
@@ -44,20 +43,14 @@ export default function Dashboard() {
           .from('modules')
           .select('*', { count: 'exact', head: true });
 
-        // Games played
-        const { count: gamesPlayed } = await supabase
-          .from('game_sessions')
-          .select('*', { count: 'exact', head: true });
+        // Total XP earned by all students
+        const { data: xpData } = await supabase
+          .from('users')
+          .select('xp')
+          .neq('role', 'admin');
+        const totalXp = xpData?.reduce((a, b) => a + (b.xp || 0), 0) || 0;
 
-        // Avg score
-        const { data: scoreData } = await supabase
-          .from('game_scores')
-          .select('score');
-        const avgScore = scoreData?.length
-          ? Math.round(scoreData.reduce((a, b) => a + b.score, 0) / scoreData.length)
-          : 0;
-
-        // New badges this week (xp_history entries in last 7 days as proxy)
+        // New badges this week
         const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const { count: badgeCount } = await supabase
           .from('xp_history')
@@ -65,7 +58,7 @@ export default function Dashboard() {
           .gte('created_at', weekAgo);
 
         setNewBadges(badgeCount || 0);
-        setStats({ totalStudents, activeModules, gamesPlayed, avgScore, activeNow: activeNow || 0 });
+        setStats({ totalStudents, activeModules, activeNow: activeNow || 0, totalXp });
 
         // Top students by XP
         const { data: top } = await supabase
@@ -76,45 +69,21 @@ export default function Dashboard() {
           .limit(5);
         setTopStudents(top || []);
 
-        // Module completion chart
-        const { data: mods } = await supabase
-          .from('modules')
-          .select('id, title');
+        // Registrations per day this week
+        const { data: recentUsers } = await supabase
+          .from('users')
+          .select('created_at')
+          .neq('role', 'admin')
+          .gte('created_at', weekAgo)
+          .order('created_at', { ascending: true });
 
-        const { data: progress } = await supabase
-          .from('user_progress')
-          .select('module_id');
-
-        const completionMap = {};
-        progress?.forEach(p => {
-          completionMap[p.module_id] = (completionMap[p.module_id] || 0) + 1;
-        });
-
-        setModules(mods?.map(m => ({
-          name: m.title?.slice(0, 10),
-          completions: completionMap[m.id] || 0
-        })) || []);
-
-        // Weekly activity — count game_sessions per day of week
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const { data: sessions } = await supabase
-          .from('game_sessions')
-          .select('created_at, user_id');
-
-        const activityMap = {};
-        const studentMap  = {};
-        sessions?.forEach(s => {
-          const day = days[new Date(s.created_at).getDay()];
-          activityMap[day] = (activityMap[day] || 0) + 1;
-          if (!studentMap[day]) studentMap[day] = new Set();
-          studentMap[day].add(s.user_id);
+        const regMap = {};
+        recentUsers?.forEach(u => {
+          const day = days[new Date(u.created_at).getDay()];
+          regMap[day] = (regMap[day] || 0) + 1;
         });
-
-        setActivity(days.map(d => ({
-          day: d,
-          games:    activityMap[d] || 0,
-          students: studentMap[d]?.size || 0,
-        })));
+        setRegistrations(days.map(d => ({ day: d, registered: regMap[d] || 0 })));
 
       } catch (err) {
         console.error(err);
@@ -126,11 +95,13 @@ export default function Dashboard() {
   }, []);
 
   const statCards = stats ? [
-    { label: 'Total Students', value: stats.totalStudents?.toLocaleString(), icon: Users,      color: 'var(--primary)',      bg: 'rgba(108,60,225,0.1)'  },
-    { label: 'Active Modules', value: stats.activeModules,                   icon: BookOpen,   color: 'var(--accent-green)', bg: 'rgba(16,185,129,0.1)'  },
-    { label: 'Games Played',   value: stats.gamesPlayed?.toLocaleString(),   icon: Gamepad2,   color: 'var(--accent-pink)',  bg: 'rgba(236,72,153,0.1)'  },
-    { label: 'Avg. Score',     value: stats.avgScore + '%',                  icon: TrendingUp, color: 'var(--secondary)',    bg: 'rgba(245,158,11,0.1)'  },
+    { label: 'Total Students', value: stats.totalStudents?.toLocaleString(),        icon: Users,     color: 'var(--primary)',      bg: 'rgba(108,60,225,0.1)' },
+    { label: 'Active Modules', value: stats.activeModules,                           icon: BookOpen,  color: 'var(--accent-green)', bg: 'rgba(16,185,129,0.1)' },
+    { label: 'Online Now',     value: stats.activeNow,                               icon: Zap,       color: 'var(--accent-pink)',  bg: 'rgba(236,72,153,0.1)' },
+    { label: 'Total XP',       value: stats.totalXp?.toLocaleString() + ' XP',      icon: TrendingUp, color: 'var(--secondary)',   bg: 'rgba(245,158,11,0.1)' },
   ] : [];
+
+  const hasRegistrations = registrations.some(d => d.registered > 0);
 
   return (
     <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16, width: '100%', boxSizing: 'border-box' }}>
@@ -157,8 +128,8 @@ export default function Dashboard() {
         </div>
         <div style={{ display: 'flex', gap: 16 }}>
           {[
-            { icon: Zap,   label: loading ? '… Active Now' : `${stats?.activeNow ?? 0} Active Now`, color: 'var(--secondary)' },
-            { icon: Award, label: loading ? '… New Badges' : `${newBadges} New Badges`,              color: 'var(--accent-pink)' },
+            { icon: Zap,   label: loading ? '… Active Now'  : `${stats?.activeNow ?? 0} Active Now`,  color: 'var(--secondary)'   },
+            { icon: Award, label: loading ? '… New Badges'  : `${newBadges} New Badges`,               color: 'var(--accent-pink)' },
           ].map(({ icon: Icon, label, color }) => (
             <div key={label} style={{
               background: 'rgba(255,255,255,0.12)', borderRadius: 14, padding: '14px 20px',
@@ -176,14 +147,12 @@ export default function Dashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
         {loading ? (
           Array(4).fill(0).map((_, i) => (
-            <Card key={i} style={{ padding: 18, height: 100, background: 'var(--card)' }} />
+            <Card key={i} style={{ padding: 18, height: 100 }} />
           ))
         ) : statCards.map(({ label, value, icon: Icon, color, bg }) => (
           <Card key={label} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon size={18} color={color} />
-              </div>
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon size={18} color={color} />
             </div>
             <div>
               <div style={{ fontFamily: 'Fredoka One', fontSize: 24, color: 'var(--text-primary)', lineHeight: 1 }}>{value}</div>
@@ -193,55 +162,36 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Charts Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <Card>
-          <div style={{ fontFamily: 'Fredoka One', fontSize: 16, marginBottom: 14, color: 'var(--text-primary)' }}>Weekly Activity</div>
-          {activity.every(d => d.games === 0 && d.students === 0) ? (
-            <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontWeight: 600, fontSize: 13 }}>
-              No game sessions recorded yet.
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={activity}>
-                <defs>
-                  <linearGradient id="gStudents" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="var(--primary)"     stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="var(--primary)"     stopOpacity={0}   />
-                  </linearGradient>
-                  <linearGradient id="gGames" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="var(--accent-pink)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="var(--accent-pink)" stopOpacity={0}   />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#9CA3AF' }} />
-                <YAxis hide allowDecimals={false} />
-                <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontFamily: 'Nunito', fontWeight: 700 }} />
-                <Area type="monotone" dataKey="students" stroke="var(--primary)"     strokeWidth={2.5} fill="url(#gStudents)" name="Students" />
-                <Area type="monotone" dataKey="games"    stroke="var(--accent-pink)" strokeWidth={2.5} fill="url(#gGames)"    name="Games"    />
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
-        </Card>
-
-        <Card>
-          <div style={{ fontFamily: 'Fredoka One', fontSize: 16, marginBottom: 14, color: 'var(--text-primary)' }}>Module Completion</div>
-          {modules.every(m => m.completions === 0) ? (
-            <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontWeight: 600, fontSize: 13 }}>
-              No completions recorded yet.
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={modules} barSize={32}>
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#9CA3AF' }} />
-                <YAxis hide allowDecimals={false} />
-                <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
-                <Bar dataKey="completions" fill="var(--primary)" radius={[8, 8, 0, 0]} name="Completions" />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </Card>
-      </div>
+      {/* Registrations Chart */}
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <UserPlus size={18} color="var(--primary)" />
+          <div style={{ fontFamily: 'Fredoka One', fontSize: 16, color: 'var(--text-primary)' }}>New Student Registrations This Week</div>
+        </div>
+        {!hasRegistrations ? (
+          <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontWeight: 600, fontSize: 13 }}>
+            No new registrations this week.
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={180}>
+            <AreaChart data={registrations}>
+              <defs>
+                <linearGradient id="gReg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="var(--primary)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}   />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#9CA3AF' }} />
+              <YAxis hide allowDecimals={false} />
+              <Tooltip
+                contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontFamily: 'Nunito', fontWeight: 700 }}
+                formatter={(value) => [value, 'New Students']}
+              />
+              <Area type="monotone" dataKey="registered" stroke="var(--primary)" strokeWidth={2.5} fill="url(#gReg)" name="Registered" />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </Card>
 
       {/* Top Students */}
       <Card>
