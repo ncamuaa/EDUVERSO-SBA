@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { GraduationCap, LogIn } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -19,24 +25,21 @@ export default function Login() {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:5002/api/auth/admin-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: form.email,
+        password: form.password,
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.message || "Login failed");
+      if (authError) {
+        setError("Invalid email or password.");
         return;
       }
 
-      localStorage.setItem("token", data.token);
+      localStorage.setItem("token", data.session.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
       navigate("/");
     } catch (err) {
-      setError("Unable to connect to server. Please try again.");
+      setError("Unable to connect. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -44,12 +47,10 @@ export default function Login() {
 
   return (
     <div style={styles.page}>
-      {/* background blobs */}
       <div style={styles.blob1} />
       <div style={styles.blob2} />
 
       <div style={styles.card}>
-        {/* Logo */}
         <div style={styles.logoRow}>
           <div style={styles.logoCircle}>
             <GraduationCap size={22} color="#fff" />
@@ -125,17 +126,17 @@ export default function Login() {
 
 const styles = {
   page: {
-  minHeight: "100vh",
-  width: "100vw",          // ← add this
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  background: "#0f0a1e",
-  fontFamily: "'Nunito', sans-serif",
-  padding: "1rem",
-  position: "relative",
-  overflow: "hidden",
-},
+    minHeight: "100vh",
+    width: "100vw",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "#0f0a1e",
+    fontFamily: "'Nunito', sans-serif",
+    padding: "1rem",
+    position: "relative",
+    overflow: "hidden",
+  },
   blob1: {
     position: "absolute",
     width: 500,
