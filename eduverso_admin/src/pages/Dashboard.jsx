@@ -7,13 +7,21 @@ import { supabase } from '../lib/supabase';
 
 const BADGES = ['🏆', '⭐', '🎯', '🔥', '💎'];
 
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning 🌤️';
+  if (h < 18) return 'Good afternoon ☀️';
+  return 'Good evening 🌙';
+}
+
 export default function Dashboard() {
-  const [stats, setStats]           = useState(null);
-  const [activity, setActivity]     = useState([]);
+  const [stats, setStats]             = useState(null);
+  const [activity, setActivity]       = useState([]);
   const [topStudents, setTopStudents] = useState([]);
-  const [modules, setModules]       = useState([]);
-  const [loading, setLoading]       = useState(true);
+  const [modules, setModules]         = useState([]);
+  const [loading, setLoading]         = useState(true);
   const [hoveredStudent, setHoveredStudent] = useState(null);
+  const [newBadges, setNewBadges]     = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,7 +31,13 @@ export default function Dashboard() {
         const { count: totalStudents } = await supabase
           .from('users')
           .select('*', { count: 'exact', head: true })
-          .eq('role', 'student');
+          .neq('role', 'admin');
+
+        // Active now (is_online)
+        const { count: activeNow } = await supabase
+          .from('users')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_online', true);
 
         // Active modules
         const { count: activeModules } = await supabase
@@ -43,18 +57,26 @@ export default function Dashboard() {
           ? Math.round(scoreData.reduce((a, b) => a + b.score, 0) / scoreData.length)
           : 0;
 
-        setStats({ totalStudents, activeModules, gamesPlayed, avgScore, activeNow: 0, totalStudentsDelta: '', gamesDelta: '' });
+        // New badges this week (xp_history entries in last 7 days as proxy)
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const { count: badgeCount } = await supabase
+          .from('xp_history')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', weekAgo);
+
+        setNewBadges(badgeCount || 0);
+        setStats({ totalStudents, activeModules, gamesPlayed, avgScore, activeNow: activeNow || 0 });
 
         // Top students by XP
         const { data: top } = await supabase
           .from('users')
           .select('full_name, xp, course')
-          .eq('role', 'student')
+          .neq('role', 'admin')
           .order('xp', { ascending: false })
           .limit(5);
         setTopStudents(top || []);
 
-        // Modules for chart
+        // Module completion chart
         const { data: mods } = await supabase
           .from('modules')
           .select('id, title');
@@ -73,17 +95,26 @@ export default function Dashboard() {
           completions: completionMap[m.id] || 0
         })) || []);
 
-        // Weekly activity (last 7 days)
-        const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        // Weekly activity — count game_sessions per day of week
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const { data: sessions } = await supabase
           .from('game_sessions')
-          .select('created_at');
+          .select('created_at, user_id');
+
         const activityMap = {};
+        const studentMap  = {};
         sessions?.forEach(s => {
           const day = days[new Date(s.created_at).getDay()];
           activityMap[day] = (activityMap[day] || 0) + 1;
+          if (!studentMap[day]) studentMap[day] = new Set();
+          studentMap[day].add(s.user_id);
         });
-        setActivity(days.map(d => ({ day: d, games: activityMap[d] || 0, students: 0 })));
+
+        setActivity(days.map(d => ({
+          day: d,
+          games:    activityMap[d] || 0,
+          students: studentMap[d]?.size || 0,
+        })));
 
       } catch (err) {
         console.error(err);
@@ -95,10 +126,10 @@ export default function Dashboard() {
   }, []);
 
   const statCards = stats ? [
-    { label: 'Total Students', value: stats.totalStudents?.toLocaleString(), change: stats.totalStudentsDelta, icon: Users,      color: 'var(--primary)',      bg: 'rgba(108,60,225,0.1)'  },
-    { label: 'Active Modules', value: stats.activeModules,                   change: '',                       icon: BookOpen,   color: 'var(--accent-green)', bg: 'rgba(16,185,129,0.1)'  },
-    { label: 'Games Played',   value: stats.gamesPlayed?.toLocaleString(),   change: stats.gamesDelta,         icon: Gamepad2,   color: 'var(--accent-pink)',  bg: 'rgba(236,72,153,0.1)'  },
-    { label: 'Avg. Score',     value: stats.avgScore + '%',                  change: '',                       icon: TrendingUp, color: 'var(--secondary)',    bg: 'rgba(245,158,11,0.1)'  },
+    { label: 'Total Students', value: stats.totalStudents?.toLocaleString(), icon: Users,      color: 'var(--primary)',      bg: 'rgba(108,60,225,0.1)'  },
+    { label: 'Active Modules', value: stats.activeModules,                   icon: BookOpen,   color: 'var(--accent-green)', bg: 'rgba(16,185,129,0.1)'  },
+    { label: 'Games Played',   value: stats.gamesPlayed?.toLocaleString(),   icon: Gamepad2,   color: 'var(--accent-pink)',  bg: 'rgba(236,72,153,0.1)'  },
+    { label: 'Avg. Score',     value: stats.avgScore + '%',                  icon: TrendingUp, color: 'var(--secondary)',    bg: 'rgba(245,158,11,0.1)'  },
   ] : [];
 
   return (
@@ -115,7 +146,7 @@ export default function Dashboard() {
         <div style={{ position: 'absolute', bottom: -40, right: 60, width: 160, height: 160, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.7)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>
-            Good morning 👋
+            {getGreeting()}
           </div>
           <h2 style={{ fontFamily: 'Fredoka One', fontSize: 26, color: '#fff', marginBottom: 6 }}>
             Welcome back, Admin!
@@ -126,8 +157,8 @@ export default function Dashboard() {
         </div>
         <div style={{ display: 'flex', gap: 16 }}>
           {[
-            { icon: Zap,   label: `${loading ? '…' : stats?.activeNow ?? 0} Active Now`, color: 'var(--secondary)' },
-            { icon: Award, label: '5 New Badges',                                          color: 'var(--accent-pink)' },
+            { icon: Zap,   label: loading ? '… Active Now' : `${stats?.activeNow ?? 0} Active Now`, color: 'var(--secondary)' },
+            { icon: Award, label: loading ? '… New Badges' : `${newBadges} New Badges`,              color: 'var(--accent-pink)' },
           ].map(({ icon: Icon, label, color }) => (
             <div key={label} style={{
               background: 'rgba(255,255,255,0.12)', borderRadius: 14, padding: '14px 20px',
@@ -147,15 +178,12 @@ export default function Dashboard() {
           Array(4).fill(0).map((_, i) => (
             <Card key={i} style={{ padding: 18, height: 100, background: 'var(--card)' }} />
           ))
-        ) : statCards.map(({ label, value, change, icon: Icon, color, bg }) => (
+        ) : statCards.map(({ label, value, icon: Icon, color, bg }) => (
           <Card key={label} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 18 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ width: 38, height: 38, borderRadius: 10, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Icon size={18} color={color} />
               </div>
-              {change && (
-                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent-green)', background: 'rgba(16,185,129,0.1)', padding: '3px 8px', borderRadius: 8 }}>{change}</span>
-              )}
             </div>
             <div>
               <div style={{ fontFamily: 'Fredoka One', fontSize: 24, color: 'var(--text-primary)', lineHeight: 1 }}>{value}</div>
@@ -169,37 +197,49 @@ export default function Dashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <Card>
           <div style={{ fontFamily: 'Fredoka One', fontSize: 16, marginBottom: 14, color: 'var(--text-primary)' }}>Weekly Activity</div>
-          <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={activity}>
-              <defs>
-                <linearGradient id="students" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="games" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--accent-pink)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--accent-pink)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#9CA3AF' }} />
-              <YAxis hide />
-              <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontFamily: 'Nunito', fontWeight: 700 }} />
-              <Area type="monotone" dataKey="students" stroke="var(--primary)"     strokeWidth={2.5} fill="url(#students)" name="Students" />
-              <Area type="monotone" dataKey="games"    stroke="var(--accent-pink)" strokeWidth={2.5} fill="url(#games)"    name="Games"    />
-            </AreaChart>
-          </ResponsiveContainer>
+          {activity.every(d => d.games === 0 && d.students === 0) ? (
+            <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontWeight: 600, fontSize: 13 }}>
+              No game sessions recorded yet.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={180}>
+              <AreaChart data={activity}>
+                <defs>
+                  <linearGradient id="gStudents" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="var(--primary)"     stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="var(--primary)"     stopOpacity={0}   />
+                  </linearGradient>
+                  <linearGradient id="gGames" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="var(--accent-pink)" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="var(--accent-pink)" stopOpacity={0}   />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#9CA3AF' }} />
+                <YAxis hide allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontFamily: 'Nunito', fontWeight: 700 }} />
+                <Area type="monotone" dataKey="students" stroke="var(--primary)"     strokeWidth={2.5} fill="url(#gStudents)" name="Students" />
+                <Area type="monotone" dataKey="games"    stroke="var(--accent-pink)" strokeWidth={2.5} fill="url(#gGames)"    name="Games"    />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </Card>
 
         <Card>
           <div style={{ fontFamily: 'Fredoka One', fontSize: 16, marginBottom: 14, color: 'var(--text-primary)' }}>Module Completion</div>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={modules} barSize={32}>
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#9CA3AF' }} />
-              <YAxis hide />
-              <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
-              <Bar dataKey="completions" fill="var(--primary)" radius={[8, 8, 0, 0]} name="Completions" />
-            </BarChart>
-          </ResponsiveContainer>
+          {modules.every(m => m.completions === 0) ? (
+            <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontWeight: 600, fontSize: 13 }}>
+              No completions recorded yet.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={modules} barSize={32}>
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#9CA3AF' }} />
+                <YAxis hide allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
+                <Bar dataKey="completions" fill="var(--primary)" radius={[8, 8, 0, 0]} name="Completions" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
       </div>
 
@@ -212,8 +252,7 @@ export default function Dashboard() {
             style={{
               fontSize: 13, fontWeight: 700, color: 'var(--primary)',
               background: 'rgba(108,60,225,0.08)', border: '1.5px solid rgba(108,60,225,0.15)',
-              cursor: 'pointer', padding: '6px 14px', borderRadius: 10,
-              transition: 'all 0.15s',
+              cursor: 'pointer', padding: '6px 14px', borderRadius: 10, transition: 'all 0.15s',
             }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(108,60,225,0.15)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(108,60,225,0.08)'; e.currentTarget.style.transform = 'translateY(0)'; }}
