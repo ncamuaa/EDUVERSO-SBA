@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Edit2, Eye, Search, X, RefreshCw, BookOpen, ChevronRight, Save, AlertCircle, Check } from 'lucide-react';
 import Card from '../components/Card';
+import { supabase } from '../lib/supabase';
 
 const COLORS = ['#6C3CE1', '#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#F97316', '#8B5CF6', '#06B6D4'];
 const EMOJIS = ['📚', '🔬', '🔢', '✏️', '🏛️', '🎨', '💻', '🧪', '🌍', '📖'];
@@ -50,19 +51,24 @@ function Modal({ children, onClose }) {
 }
 
 // ── View Modal ─────────────────────────────────────────────────────────────
-function ViewModal({ module: m, onClose, onEdit, token }) {
-  const [lessons, setLessons]   = useState([]);
-  const [loading, setLoading]   = useState(true);
+function ViewModal({ module: m, onClose, onEdit }) {
+  const [lessons, setLessons] = useState([]);
+  const [loading, setLoading] = useState(true);
   const color = colorForId(m.id);
   const emoji = emojiForSubject(m.subject);
 
   useEffect(() => {
-    fetch(`http://localhost:5002/api/lessons/module/${m.id}`,
-      { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(d => { if (d.success) setLessons(d.lessons); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    async function fetchLessons() {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('lessons')
+        .select('*')
+        .eq('module_id', m.id)
+        .order('order_index', { ascending: true });
+      if (!error && data) setLessons(data);
+      setLoading(false);
+    }
+    fetchLessons();
   }, [m.id]);
 
   return (
@@ -151,8 +157,8 @@ function ViewModal({ module: m, onClose, onEdit, token }) {
 }
 
 // ── Edit Modal ─────────────────────────────────────────────────────────────
-function EditModal({ module: m, onClose, onSaved, token }) {
-  const [form, setForm]     = useState({
+function EditModal({ module: m, onClose, onSaved }) {
+  const [form, setForm] = useState({
     title:       m.title       || '',
     description: m.description || '',
     subject:     m.subject     || '',
@@ -160,9 +166,9 @@ function EditModal({ module: m, onClose, onSaved, token }) {
     course:      m.course      || '',
     order_index: m.order_index ?? 0,
   });
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState(null);
-  const [saved, setSaved]     = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState(null);
+  const [saved, setSaved]   = useState(false);
   const color = colorForId(m.id);
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })); }
@@ -171,13 +177,20 @@ function EditModal({ module: m, onClose, onSaved, token }) {
     if (!form.title.trim()) { setError('Title is required.'); return; }
     setSaving(true); setError(null);
     try {
-      const res = await fetch(`http://localhost:5002/api/modules/${m.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message || 'Save failed');
+      const { data, error: sbError } = await supabase
+        .from('modules')
+        .update({
+          title:       form.title,
+          description: form.description,
+          subject:     form.subject,
+          grade_level: form.grade_level,
+          course:      form.course,
+          order_index: form.order_index,
+        })
+        .eq('id', m.id)
+        .select()
+        .single();
+      if (sbError) throw new Error(sbError.message);
       setSaved(true);
       setTimeout(() => { onSaved({ ...m, ...form }); onClose(); }, 900);
     } catch (e) {
@@ -256,7 +269,7 @@ function EditModal({ module: m, onClose, onSaved, token }) {
 }
 
 // ── Create Modal ───────────────────────────────────────────────────────────
-function CreateModal({ onClose, onCreated, token }) {
+function CreateModal({ onClose, onCreated }) {
   const [form, setForm] = useState({
     title: '', description: '', subject: '',
     grade_level: '', course: '', order_index: 0,
@@ -273,15 +286,21 @@ function CreateModal({ onClose, onCreated, token }) {
     if (!form.subject.trim()) { setError('Subject is required.'); return; }
     setSaving(true); setError(null);
     try {
-      const res = await fetch('http://localhost:5002/api/modules', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message || 'Create failed');
+      const { data, error: sbError } = await supabase
+        .from('modules')
+        .insert({
+          title:       form.title,
+          description: form.description,
+          subject:     form.subject,
+          grade_level: form.grade_level,
+          course:      form.course,
+          order_index: form.order_index,
+        })
+        .select()
+        .single();
+      if (sbError) throw new Error(sbError.message);
       setSaved(true);
-      setTimeout(() => { onCreated(data.module); onClose(); }, 900);
+      setTimeout(() => { onCreated(data); onClose(); }, 900);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -381,23 +400,30 @@ export default function Modules() {
   const [filterCourse, setCourse]   = useState('');
   const [viewing, setViewing]   = useState(null);
   const [editing, setEditing]   = useState(null);
-  const [creating, setCreating] = useState(false); // ← new
-
-  const token = localStorage.getItem('token');
+  const [creating, setCreating] = useState(false);
 
   async function fetchModules() {
     setLoading(true); setError(null);
     try {
-      const params = new URLSearchParams();
-      if (filterSubject) params.set('subject', filterSubject);
-      if (filterGrade)   params.set('grade',   filterGrade);
-      if (filterCourse)  params.set('course',  filterCourse);
-      const res  = await fetch(`http://localhost:5002/api/modules?${params}`,
-        { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message || 'Failed to load modules');
-      setModules(data.modules);
-      if (data.filters) setFilters(data.filters);
+      let query = supabase.from('modules').select('*').order('order_index', { ascending: true });
+      if (filterSubject) query = query.eq('subject', filterSubject);
+      if (filterGrade)   query = query.eq('grade_level', filterGrade);
+      if (filterCourse)  query = query.eq('course', filterCourse);
+
+      const { data, error: sbError } = await query;
+      if (sbError) throw new Error(sbError.message);
+
+      setModules(data || []);
+
+      // Derive filter options from all modules (unfiltered fetch for sidebar options)
+      const { data: allData } = await supabase.from('modules').select('subject, grade_level, course');
+      if (allData) {
+        setFilters({
+          subjects: [...new Set(allData.map(m => m.subject).filter(Boolean))].sort(),
+          grades:   [...new Set(allData.map(m => m.grade_level).filter(Boolean))].sort(),
+          courses:  [...new Set(allData.map(m => m.course).filter(Boolean))].sort(),
+        });
+      }
     } catch (e) {
       setError(e.message);
     } finally {
@@ -411,7 +437,7 @@ export default function Modules() {
     setModules(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated } : m));
   }
 
-  function handleCreated(newModule) { // ← new
+  function handleCreated(newModule) {
     setModules(prev => [newModule, ...prev]);
   }
 
@@ -477,7 +503,6 @@ export default function Modules() {
           <button onClick={fetchModules} style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--card-bg)', border: '1.5px solid var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <RefreshCw size={14} color="var(--text-muted)" />
           </button>
-          {/* ← wired up */}
           <button onClick={() => setCreating(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12, background: 'linear-gradient(135deg, var(--primary), var(--primary-light))', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'Nunito', fontWeight: 800, fontSize: 14, boxShadow: '0 4px 16px rgba(108,60,225,0.35)' }}>
             <Plus size={16} /> Create Module
           </button>
@@ -572,9 +597,9 @@ export default function Modules() {
       )}
 
       {/* Modals */}
-      {viewing  && <ViewModal   module={viewing}  onClose={() => setViewing(null)}  onEdit={m => setEditing(m)} token={token} />}
-      {editing  && <EditModal   module={editing}  onClose={() => setEditing(null)}  onSaved={handleSaved}       token={token} />}
-      {creating && <CreateModal                   onClose={() => setCreating(false)} onCreated={handleCreated}   token={token} />}
+      {viewing  && <ViewModal   module={viewing}  onClose={() => setViewing(null)}  onEdit={m => setEditing(m)} />}
+      {editing  && <EditModal   module={editing}  onClose={() => setEditing(null)}  onSaved={handleSaved} />}
+      {creating && <CreateModal                   onClose={() => setCreating(false)} onCreated={handleCreated} />}
     </div>
   );
 }

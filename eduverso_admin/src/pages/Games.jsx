@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Gamepad2, Play, Zap, Trophy } from 'lucide-react';
 import Card from '../components/Card';
+import { supabase } from '../lib/supabase';
 
 const GAME_META = {
   guess_game:          { title: 'Guess Game',         subject: 'General',     type: 'Quiz',       color: '#6C3CE1', difficulty: 'Medium' },
@@ -27,16 +28,18 @@ export default function Games() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
 
-  const token = localStorage.getItem('token');
-
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('http://localhost:5002/api/game-arena/leaderboard', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        if (data.success) setLeaderboard(data.leaderboard);
+        const { data, error } = await supabase
+          .from('game_scores')
+          .select('*, users(full_name)')
+          .order('high_score', { ascending: false });
+
+        if (!error) setLeaderboard(data.map(d => ({
+          ...d,
+          player_name: d.users?.full_name || 'Unknown',
+        })));
       } catch (err) {
         console.error('Failed to fetch game data:', err);
       } finally {
@@ -59,7 +62,6 @@ export default function Games() {
   return (
     <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-      {/* Stats Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
         {[
           { label: 'Total Games',  value: games.length,                icon: <Gamepad2 size={24} color="#6C3CE1" />, bg: 'rgba(108,60,225,0.1)', color: '#6C3CE1' },
@@ -79,7 +81,6 @@ export default function Games() {
         ))}
       </div>
 
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontFamily: 'Fredoka One', fontSize: 20 }}>Game Library</div>
         <button style={{
@@ -92,7 +93,6 @@ export default function Games() {
         </button>
       </div>
 
-      {/* Games Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
         {games.map(([key, meta]) => {
           const stats          = leaderboard.filter(l => l.game_type === key);
@@ -102,7 +102,6 @@ export default function Games() {
 
           return (
             <Card key={key} style={{ padding: 0, overflow: 'hidden' }}>
-              {/* Banner */}
               <div style={{
                 height: 90,
                 background: `linear-gradient(135deg, ${meta.color}, ${meta.color}99)`,
@@ -113,20 +112,13 @@ export default function Games() {
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 700, marginTop: 2 }}>{meta.type}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{
-                    display: 'inline-block', padding: '3px 10px', borderRadius: 8, marginBottom: 4,
-                    background: 'rgba(255,255,255,0.2)', fontSize: 11, fontWeight: 800, color: '#fff'
-                  }}>{meta.subject}</div>
+                  <div style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 8, marginBottom: 4, background: 'rgba(255,255,255,0.2)', fontSize: 11, fontWeight: 800, color: '#fff' }}>{meta.subject}</div>
                   <br />
-                  <span style={{
-                    fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 6,
-                    background: 'rgba(255,255,255,0.15)', color: '#fff'
-                  }}>{meta.difficulty}</span>
+                  <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.15)', color: '#fff' }}>{meta.difficulty}</span>
                 </div>
               </div>
 
               <div style={{ padding: '14px 18px' }}>
-                {/* Stats */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
                   {[
                     { label: 'Plays',     value: loading ? '…' : totalGamePlays, color: meta.color },
@@ -140,7 +132,6 @@ export default function Games() {
                   ))}
                 </div>
 
-                {/* Top Players */}
                 {!loading && stats.length > 0 && (
                   <div style={{ marginBottom: 12 }}>
                     <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Top Players</div>
@@ -157,18 +148,11 @@ export default function Games() {
                 )}
 
                 {!loading && stats.length === 0 && (
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 12, textAlign: 'center', padding: '8px', background: 'var(--bg)', borderRadius: 8 }}>
-                    No plays yet
-                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 12, textAlign: 'center', padding: '8px', background: 'var(--bg)', borderRadius: 8 }}>No plays yet</div>
                 )}
 
-                {/* Live badge only */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 4, padding: '8px 12px', borderRadius: 10,
-                    background: 'rgba(16,185,129,0.1)', fontSize: 11, fontWeight: 800,
-                    color: 'var(--accent-green)',
-                  }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 12px', borderRadius: 10, background: 'rgba(16,185,129,0.1)', fontSize: 11, fontWeight: 800, color: 'var(--accent-green)' }}>
                     <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-green)' }} />
                     Live
                   </div>
@@ -179,7 +163,6 @@ export default function Games() {
         })}
       </div>
 
-      {/* Full Leaderboard */}
       <Card style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
           <div style={{ fontFamily: 'Fredoka One', fontSize: 18 }}>Overall Leaderboard</div>
@@ -199,7 +182,6 @@ export default function Games() {
                 fontFamily: 'Nunito', fontWeight: 700, fontSize: 11,
                 background: activeTab === val ? 'var(--primary)' : 'var(--bg)',
                 color: activeTab === val ? '#fff' : 'var(--text-secondary)',
-                transition: 'all 0.15s'
               }}>{label}</button>
             ))}
           </div>
@@ -220,27 +202,19 @@ export default function Games() {
               <tr><td colSpan={6} style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600 }}>No data yet.</td></tr>
             ) : (
               filteredLeaderboard.map((l, i) => (
-                <tr key={i}
-                  style={{ borderTop: '1px solid var(--border)', transition: 'background 0.12s' }}
+                <tr key={i} style={{ borderTop: '1px solid var(--border)', transition: 'background 0.12s' }}
                   onMouseOver={e => e.currentTarget.style.background = 'rgba(108,60,225,0.03)'}
-                  onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-                >
+                  onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
                   <td style={{ padding: '14px 24px' }}>
-                    <span style={{ fontFamily: 'Fredoka One', fontSize: 16, color: i === 0 ? '#F59E0B' : i === 1 ? '#9CA3AF' : i === 2 ? '#CD7C2F' : 'var(--text-muted)' }}>
-                      #{i + 1}
-                    </span>
+                    <span style={{ fontFamily: 'Fredoka One', fontSize: 16, color: i === 0 ? '#F59E0B' : i === 1 ? '#9CA3AF' : i === 2 ? '#CD7C2F' : 'var(--text-muted)' }}>#{i + 1}</span>
                   </td>
                   <td style={{ padding: '14px 24px', fontWeight: 800, fontSize: 14 }}>{l.player_name || 'Unknown'}</td>
                   <td style={{ padding: '14px 24px' }}>
-                    <span style={{
-                      fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 6,
-                      background: gameColors[l.game_type]?.bg   || 'rgba(0,0,0,0.05)',
-                      color:      gameColors[l.game_type]?.color || 'var(--text-muted)',
-                    }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 6, background: gameColors[l.game_type]?.bg || 'rgba(0,0,0,0.05)', color: gameColors[l.game_type]?.color || 'var(--text-muted)' }}>
                       {GAME_META[l.game_type]?.title || l.game_type}
                     </span>
                   </td>
-                  <td style={{ padding: '14px 24px', fontFamily: 'Fredoka One', fontSize: 16, color: 'var(--primary)'   }}>{l.high_score}</td>
+                  <td style={{ padding: '14px 24px', fontFamily: 'Fredoka One', fontSize: 16, color: 'var(--primary)' }}>{l.high_score}</td>
                   <td style={{ padding: '14px 24px', fontFamily: 'Fredoka One', fontSize: 16, color: 'var(--secondary)' }}>{l.total_xp}</td>
                   <td style={{ padding: '14px 24px', fontSize: 13, fontWeight: 700 }}>{l.games_played}</td>
                 </tr>
