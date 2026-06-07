@@ -7,7 +7,7 @@ const BADGES = ['🏆', '⭐', '🎯', '🔥', '💎'];
 
 export default function Students() {
   const [students, setStudents] = useState([]);
-  const [stats, setStats] = useState({ total: 0, activeThisWeek: 0, avgXp: 0 });
+  const [stats, setStats] = useState({ total: 0, onlineNow: 0, avgXp: 0 });
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -23,14 +23,13 @@ export default function Students() {
         if (error) throw error;
 
         const students = data || [];
-        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        const activeThisWeek = students.filter(s => s.last_login && new Date(s.last_login) >= weekAgo).length;
+        const onlineNow = students.filter(s => s.is_online === true).length;
         const avgXp = students.length
           ? Math.round(students.reduce((a, b) => a + (b.xp || 0), 0) / students.length * 10) / 10
           : 0;
 
         setStudents(students);
-        setStats({ total: students.length, activeThisWeek, avgXp });
+        setStats({ total: students.length, onlineNow, avgXp });
       } catch (err) {
         console.error('Failed to fetch students:', err);
       } finally {
@@ -43,7 +42,7 @@ export default function Students() {
   const filtered = students.filter(s => {
     const matchSearch = s.full_name?.toLowerCase().includes(search.toLowerCase()) ||
                         s.email?.toLowerCase().includes(search.toLowerCase());
-    const isActive = s.last_login && new Date(s.last_login) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const isActive = s.is_online === true;
     if (filter === 'active') return matchSearch && isActive;
     if (filter === 'inactive') return matchSearch && !isActive;
     return matchSearch;
@@ -54,7 +53,7 @@ export default function Students() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
         {[
           { label: 'Total Enrolled', value: loading ? '…' : stats.total.toLocaleString(), icon: '👨‍🎓', color: 'var(--primary)' },
-          { label: 'Active This Week', value: loading ? '…' : stats.activeThisWeek.toLocaleString(), icon: '🔥', color: 'var(--accent-green)' },
+          { label: 'Online Now', value: loading ? '…' : stats.onlineNow.toLocaleString(), icon: '🟢', color: 'var(--accent-green)' },
           { label: 'Avg. XP', value: loading ? '…' : stats.avgXp, icon: '⭐', color: 'var(--secondary)' },
         ].map(({ label, value, icon, color }) => (
           <Card key={label} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -110,7 +109,7 @@ export default function Students() {
             </thead>
             <tbody>
               {filtered.map((s, i) => {
-                const isActive = s.last_login && new Date(s.last_login) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                const isActive = s.is_online === true;
                 return (
                   <tr key={s.id} style={{ borderTop: '1px solid var(--border)', transition: 'background 0.12s' }}
                     onMouseOver={e => e.currentTarget.style.background = 'rgba(108,60,225,0.03)'}
