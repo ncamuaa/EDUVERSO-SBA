@@ -50,7 +50,7 @@ export default function Feedback() {
   const filtered = feedbacks.filter(f =>
     (filter === 'all' || f.rating === parseInt(filter)) &&
     (f.student_name?.toLowerCase().includes(search.toLowerCase()) ||
-     f.body?.toLowerCase().includes(search.toLowerCase()))
+    f.content?.toLowerCase().includes(search.toLowerCase()))
   );
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
@@ -136,7 +136,7 @@ export default function Feedback() {
                   </div>
                 </div>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, fontWeight: 600 }}>
-                  "{f.body}"
+                  "{f.content}"
                 </p>
               </Card>
             ))}
