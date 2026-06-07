@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Plus, MoreHorizontal } from 'lucide-react';
 import Card from '../components/Card';
+import { supabase } from '../lib/supabase';
 
 const BADGES = ['🏆', '⭐', '🎯', '🔥', '💎'];
 
@@ -11,23 +12,25 @@ export default function Students() {
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
 
-  const token = localStorage.getItem('token');
-
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [studentsRes, statsRes] = await Promise.all([
-          fetch('http://localhost:5002/api/students', {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          fetch('http://localhost:5002/api/students/stats', {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-        ]);
-        const studentsData = await studentsRes.json();
-        const statsData = await statsRes.json();
-        if (studentsData.success) setStudents(studentsData.students);
-        if (statsData.success) setStats(statsData.stats);
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .neq('role', 'admin');
+
+        if (error) throw error;
+
+        const students = data || [];
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const activeThisWeek = students.filter(s => s.last_login && new Date(s.last_login) >= weekAgo).length;
+        const avgXp = students.length
+          ? Math.round(students.reduce((a, b) => a + (b.xp || 0), 0) / students.length * 10) / 10
+          : 0;
+
+        setStudents(students);
+        setStats({ total: students.length, activeThisWeek, avgXp });
       } catch (err) {
         console.error('Failed to fetch students:', err);
       } finally {
@@ -48,12 +51,11 @@ export default function Students() {
 
   return (
     <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
         {[
-          { label: 'Total Enrolled', value: loading ? '…' : stats.total.toLocaleString(), icon: '👨‍🎓', color: 'var(--primary)', bg: 'rgba(108,60,225,0.08)' },
-          { label: 'Active This Week', value: loading ? '…' : stats.activeThisWeek.toLocaleString(), icon: '🔥', color: 'var(--accent-green)', bg: 'rgba(16,185,129,0.08)' },
-          { label: 'Avg. XP', value: loading ? '…' : stats.avgXp, icon: '⭐', color: 'var(--secondary)', bg: 'rgba(245,158,11,0.08)' },
+          { label: 'Total Enrolled', value: loading ? '…' : stats.total.toLocaleString(), icon: '👨‍🎓', color: 'var(--primary)' },
+          { label: 'Active This Week', value: loading ? '…' : stats.activeThisWeek.toLocaleString(), icon: '🔥', color: 'var(--accent-green)' },
+          { label: 'Avg. XP', value: loading ? '…' : stats.avgXp, icon: '⭐', color: 'var(--secondary)' },
         ].map(({ label, value, icon, color }) => (
           <Card key={label} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ fontSize: 32 }}>{icon}</div>
@@ -66,7 +68,6 @@ export default function Students() {
       </div>
 
       <Card style={{ padding: 0, overflow: 'hidden' }}>
-        {/* Table Header */}
         <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)' }}>
           <div style={{ fontFamily: 'Fredoka One', fontSize: 18 }}>All Students</div>
           <div style={{ display: 'flex', gap: 10 }}>
@@ -94,7 +95,6 @@ export default function Students() {
           </div>
         </div>
 
-        {/* Table */}
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600 }}>Loading students…</div>
         ) : filtered.length === 0 ? (

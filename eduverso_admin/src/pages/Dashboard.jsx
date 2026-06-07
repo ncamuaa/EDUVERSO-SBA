@@ -3,6 +3,7 @@ import { Users, BookOpen, Gamepad2, TrendingUp, Star, Zap, Award } from 'lucide-
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/Card';
+import { supabase } from '../lib/supabase';
 
 const BADGES = ['🏆', '⭐', '🎯', '🔥', '💎'];
 
@@ -13,32 +14,91 @@ export default function Dashboard() {
   const [modules, setModules]       = useState([]);
   const [loading, setLoading]       = useState(true);
   const [hoveredStudent, setHoveredStudent] = useState(null);
-
   const navigate = useNavigate();
-  const token = localStorage.getItem('token');
-  const base  = 'http://localhost:5002/api/dashboard';
 
   useEffect(() => {
-    const headers = { Authorization: `Bearer ${token}` };
-    Promise.all([
-      fetch(`${base}/stats`,             { headers }).then(r => r.json()),
-      fetch(`${base}/weekly-activity`,   { headers }).then(r => r.json()),
-      fetch(`${base}/top-students`,      { headers }).then(r => r.json()),
-      fetch(`${base}/module-completion`, { headers }).then(r => r.json()),
-    ]).then(([s, a, t, m]) => {
-      if (s.success) setStats(s.stats);
-      if (a.success) setActivity(a.activity);
-      if (t.success) setTopStudents(t.students);
-      if (m.success) setModules(m.modules);
-    }).catch(console.error)
-      .finally(() => setLoading(false));
+    async function fetchAll() {
+      try {
+        // Total students
+        const { count: totalStudents } = await supabase
+          .from('users')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', 'student');
+
+        // Active modules
+        const { count: activeModules } = await supabase
+          .from('modules')
+          .select('*', { count: 'exact', head: true });
+
+        // Games played
+        const { count: gamesPlayed } = await supabase
+          .from('game_sessions')
+          .select('*', { count: 'exact', head: true });
+
+        // Avg score
+        const { data: scoreData } = await supabase
+          .from('game_scores')
+          .select('score');
+        const avgScore = scoreData?.length
+          ? Math.round(scoreData.reduce((a, b) => a + b.score, 0) / scoreData.length)
+          : 0;
+
+        setStats({ totalStudents, activeModules, gamesPlayed, avgScore, activeNow: 0, totalStudentsDelta: '', gamesDelta: '' });
+
+        // Top students by XP
+        const { data: top } = await supabase
+          .from('users')
+          .select('full_name, xp, course')
+          .eq('role', 'student')
+          .order('xp', { ascending: false })
+          .limit(5);
+        setTopStudents(top || []);
+
+        // Modules for chart
+        const { data: mods } = await supabase
+          .from('modules')
+          .select('id, title');
+
+        const { data: progress } = await supabase
+          .from('user_progress')
+          .select('module_id');
+
+        const completionMap = {};
+        progress?.forEach(p => {
+          completionMap[p.module_id] = (completionMap[p.module_id] || 0) + 1;
+        });
+
+        setModules(mods?.map(m => ({
+          name: m.title?.slice(0, 10),
+          completions: completionMap[m.id] || 0
+        })) || []);
+
+        // Weekly activity (last 7 days)
+        const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        const { data: sessions } = await supabase
+          .from('game_sessions')
+          .select('created_at');
+        const activityMap = {};
+        sessions?.forEach(s => {
+          const day = days[new Date(s.created_at).getDay()];
+          activityMap[day] = (activityMap[day] || 0) + 1;
+        });
+        setActivity(days.map(d => ({ day: d, games: activityMap[d] || 0, students: 0 })));
+
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchAll();
   }, []);
 
   const statCards = stats ? [
-    { label: 'Total Students', value: stats.totalStudents.toLocaleString(), change: stats.totalStudentsDelta, icon: Users,      color: 'var(--primary)',      bg: 'rgba(108,60,225,0.1)'  },
-    { label: 'Active Modules', value: stats.activeModules,                  change: '',                       icon: BookOpen,   color: 'var(--accent-green)', bg: 'rgba(16,185,129,0.1)'  },
-    { label: 'Games Played',   value: stats.gamesPlayed.toLocaleString(),   change: stats.gamesDelta,         icon: Gamepad2,   color: 'var(--accent-pink)',  bg: 'rgba(236,72,153,0.1)'  },
-    { label: 'Avg. Score',     value: stats.avgScore + '%',                 change: '',                       icon: TrendingUp, color: 'var(--secondary)',    bg: 'rgba(245,158,11,0.1)'  },
+    { label: 'Total Students', value: stats.totalStudents?.toLocaleString(), change: stats.totalStudentsDelta, icon: Users,      color: 'var(--primary)',      bg: 'rgba(108,60,225,0.1)'  },
+    { label: 'Active Modules', value: stats.activeModules,                   change: '',                       icon: BookOpen,   color: 'var(--accent-green)', bg: 'rgba(16,185,129,0.1)'  },
+    { label: 'Games Played',   value: stats.gamesPlayed?.toLocaleString(),   change: stats.gamesDelta,         icon: Gamepad2,   color: 'var(--accent-pink)',  bg: 'rgba(236,72,153,0.1)'  },
+    { label: 'Avg. Score',     value: stats.avgScore + '%',                  change: '',                       icon: TrendingUp, color: 'var(--secondary)',    bg: 'rgba(245,158,11,0.1)'  },
   ] : [];
 
   return (
@@ -175,11 +235,7 @@ export default function Dashboard() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 12, padding: '9px 12px',
                 borderRadius: 10, cursor: 'pointer',
-                background: hoveredStudent === i
-                  ? 'rgba(108,60,225,0.08)'
-                  : i === 0
-                  ? 'rgba(108,60,225,0.05)'
-                  : 'transparent',
+                background: hoveredStudent === i ? 'rgba(108,60,225,0.08)' : i === 0 ? 'rgba(108,60,225,0.05)' : 'transparent',
                 transition: 'background 0.15s, transform 0.15s',
                 transform: hoveredStudent === i ? 'translateX(3px)' : 'translateX(0)',
               }}>
