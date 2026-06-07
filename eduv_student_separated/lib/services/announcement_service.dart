@@ -54,11 +54,12 @@ class AnnouncementService {
         .select('id');
     final total = (countRes as List).length;
 
-    final response = await _db
-        .from('announcements')
-        .select()
-        .order('created_at', ascending: true)
-        .range(from, to);
+final response = await _db
+    .from('announcements')
+    .select()
+    .order('pinned', ascending: false)   // pinned first
+    .order('created_at', ascending: false) // then newest
+    .range(from, to);
 
     final list = (response as List)
         .map((a) => Announcement.fromJson(a as Map<String, dynamic>))
