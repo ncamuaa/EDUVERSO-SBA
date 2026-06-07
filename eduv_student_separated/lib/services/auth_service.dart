@@ -41,6 +41,7 @@ class AuthService {
       'course': course,
       'year': year,
       'section': section,
+      'is_online': false,
     });
   }
 
@@ -58,11 +59,18 @@ class AuthService {
       throw Exception('Invalid email or password.');
     }
 
+    final user = response.user!;
+
+    // ✅ Use maybeSingle() to avoid crash if no profile row exists
     final profile = await _supabase
         .from('users')
         .select()
-        .eq('id', response.user!.id)
-        .single();
+        .eq('id', user.id)
+        .maybeSingle();
+
+    if (profile == null) {
+      throw Exception('Account not found. Please register first.');
+    }
 
     _cachedUser = Map<String, dynamic>.from(profile);
     final prefs = await SharedPreferences.getInstance();
@@ -74,7 +82,7 @@ class AuthService {
       await _supabase.from('users').update({
         'last_login': DateTime.now().toIso8601String(),
         'is_online': true,
-      }).eq('id', response.user!.id);
+      }).eq('id', user.id);
     } catch (_) {}
   }
 
@@ -117,7 +125,9 @@ class AuthService {
         .from('users')
         .select()
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
+
+    if (profile == null) throw Exception('Profile not found.');
 
     _cachedUser = Map<String, dynamic>.from(profile);
     final prefs = await SharedPreferences.getInstance();
