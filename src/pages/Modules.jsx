@@ -57,7 +57,7 @@ function ViewModal({ module: m, onClose, onEdit, token }) {
   const emoji = emojiForSubject(m.subject);
 
   useEffect(() => {
-    fetch(`http://localhost:5002/api/lessons/module/${m.id}`,
+    fetch(`${import.meta.env.VITE_API_URL}/api/lessons/module/${m.id}`,
       { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => { if (d.success) setLessons(d.lessons); })
@@ -171,7 +171,7 @@ function EditModal({ module: m, onClose, onSaved, token }) {
     if (!form.title.trim()) { setError('Title is required.'); return; }
     setSaving(true); setError(null);
     try {
-      const res = await fetch(`http://localhost:5002/api/modules/${m.id}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/modules/${m.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),
@@ -273,7 +273,7 @@ function CreateModal({ onClose, onCreated, token }) {
     if (!form.subject.trim()) { setError('Subject is required.'); return; }
     setSaving(true); setError(null);
     try {
-      const res = await fetch('http://localhost:5002/api/modules', {
+      const res = await fetch('${import.meta.env.VITE_API_URL}/api/modules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),
@@ -392,7 +392,7 @@ export default function Modules() {
       if (filterSubject) params.set('subject', filterSubject);
       if (filterGrade)   params.set('grade',   filterGrade);
       if (filterCourse)  params.set('course',  filterCourse);
-      const res  = await fetch(`http://localhost:5002/api/modules?${params}`,
+      const res  = await fetch(`${import.meta.env.VITE_API_URL}/api/modules?${params}`,
         { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Failed to load modules');

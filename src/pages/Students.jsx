@@ -17,10 +17,10 @@ export default function Students() {
     const fetchData = async () => {
       try {
         const [studentsRes, statsRes] = await Promise.all([
-          fetch('http://localhost:5002/api/students', {
+          fetch('${import.meta.env.VITE_API_URL}/api/students', {
             headers: { Authorization: `Bearer ${token}` }
           }),
-          fetch('http://localhost:5002/api/students/stats', {
+          fetch('${import.meta.env.VITE_API_URL}/api/students/stats', {
             headers: { Authorization: `Bearer ${token}` }
           }),
         ]);

@@ -64,7 +64,7 @@ export default function Topbar() {
       const token = localStorage.getItem('token');
       try {
         const res = await fetch(
-          `http://localhost:5002/api/search?q=${encodeURIComponent(query.trim())}`,
+          `${import.meta.env.VITE_API_URL}/api/search?q=${encodeURIComponent(query.trim())}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const data = await res.json();

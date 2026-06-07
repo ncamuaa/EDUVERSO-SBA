@@ -16,7 +16,7 @@ export default function Dashboard() {
 
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
-  const base  = 'http://localhost:5002/api/dashboard';
+  const base  = '${import.meta.env.VITE_API_URL}/api/dashboard';
 
   useEffect(() => {
     const headers = { Authorization: `Bearer ${token}` };
