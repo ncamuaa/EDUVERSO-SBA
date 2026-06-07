@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -7,8 +6,6 @@ class AuthService {
   static final _supabase = Supabase.instance.client;
   static Map<String, dynamic>? _cachedUser;
   static Map<String, dynamic>? get cachedUser => _cachedUser;
-
-  static const _baseUrl = 'http://localhost:5002';
 
   // ── Register ──────────────────────────────────────────────────
   static Future<void> register({
@@ -72,17 +69,27 @@ class AuthService {
     await prefs.remove('user');
     await prefs.setString('user', jsonEncode(_cachedUser));
 
-    // ✅ Update last_login in Express backend (no auth needed)
-    // ✅ Update last_login directly in Supabase
-try {
-  await _supabase
-      .from('users')
-      .update({'last_login': DateTime.now().toIso8601String()})
-      .eq('id', response.user!.id);
-} catch (_) {}
+    // ✅ Update last_login and set is_online = true
+    try {
+      await _supabase.from('users').update({
+        'last_login': DateTime.now().toIso8601String(),
+        'is_online': true,
+      }).eq('id', response.user!.id);
+    } catch (_) {}
+  }
 
   // ── Logout ────────────────────────────────────────────────────
   static Future<void> logout() async {
+    // ✅ Set is_online = false before signing out
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user != null) {
+        await _supabase.from('users').update({
+          'is_online': false,
+        }).eq('id', user.id);
+      }
+    } catch (_) {}
+
     await _supabase.auth.signOut();
     _cachedUser = null;
 
