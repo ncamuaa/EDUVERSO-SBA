@@ -73,14 +73,13 @@ class AuthService {
     await prefs.setString('user', jsonEncode(_cachedUser));
 
     // ✅ Update last_login in Express backend (no auth needed)
-    try {
-      await http.post(
-        Uri.parse('$_baseUrl/api/students/update-last-login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'userId': response.user!.id}),
-      );
-    } catch (_) {}
-  }
+    // ✅ Update last_login directly in Supabase
+try {
+  await _supabase
+      .from('users')
+      .update({'last_login': DateTime.now().toIso8601String()})
+      .eq('id', response.user!.id);
+} catch (_) {}
 
   // ── Logout ────────────────────────────────────────────────────
   static Future<void> logout() async {
