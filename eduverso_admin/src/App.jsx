@@ -20,6 +20,10 @@ const ProtectedRoute = ({ children }) => {
 const Layout = ({ children }) => {
   const location = useLocation();
   const isLogin = location.pathname === '/login';
+  const token = localStorage.getItem('token');
+
+  // If no token and not on login, render nothing (redirect happens in ProtectedRoute)
+  if (!token && !isLogin) return null;
 
   if (isLogin) return <>{children}</>;
 
