@@ -273,7 +273,7 @@ function CreateModal({ onClose, onCreated, token }) {
     if (!form.subject.trim()) { setError('Subject is required.'); return; }
     setSaving(true); setError(null);
     try {
-      const res = await fetch('${import.meta.env.VITE_API_URL}/api/modules', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/modules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),

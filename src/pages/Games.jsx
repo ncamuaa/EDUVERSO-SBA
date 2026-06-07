@@ -32,7 +32,7 @@ export default function Games() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('${import.meta.env.VITE_API_URL}/api/game-arena/leaderboard', {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/game-arena/leaderboard', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();

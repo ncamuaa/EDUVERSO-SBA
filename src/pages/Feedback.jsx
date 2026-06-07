@@ -26,7 +26,7 @@ export default function Feedback() {
   useEffect(() => {
     const fetchFeedback = async () => {
       try {
-        const res = await fetch('${import.meta.env.VITE_API_URL}/api/feedback/all', {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/feedback/all', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
