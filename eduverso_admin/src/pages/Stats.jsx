@@ -1,47 +1,140 @@
+import { useState, useEffect } from 'react';
 import Card from '../components/Card';
-import { AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { supabase } from '../lib/supabase';
+import {
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
+} from 'recharts';
 
-const monthlyData = [
-  { month: 'Jan', students: 2100, sessions: 8400, games: 12000 },
-  { month: 'Feb', students: 2250, sessions: 9100, games: 13500 },
-  { month: 'Mar', students: 2400, sessions: 9800, games: 14200 },
-  { month: 'Apr', students: 2350, sessions: 9400, games: 13800 },
-  { month: 'May', students: 2600, sessions: 10500, games: 16000 },
-  { month: 'Jun', students: 2847, sessions: 11200, games: 18492 },
-];
-
-const subjectData = [
-  { subject: 'Math', avg: 78, high: 95, low: 45 },
-  { subject: 'English', avg: 83, high: 98, low: 52 },
-  { subject: 'Science', avg: 71, high: 92, low: 38 },
-  { subject: 'Filipino', avg: 87, high: 99, low: 60 },
-  { subject: 'History', avg: 74, high: 91, low: 42 },
-  { subject: 'MAPEH', avg: 90, high: 100, low: 68 },
-];
-
-const pieData = [
-  { name: 'Grade 3', value: 480, color: '#6C3CE1' },
-  { name: 'Grade 4', value: 620, color: '#EC4899' },
-  { name: 'Grade 5', value: 890, color: '#3B82F6' },
-  { name: 'Grade 6', value: 857, color: '#10B981' },
-];
-
-const timeData = [
-  { time: '6am', active: 12 }, { time: '8am', active: 145 }, { time: '10am', active: 389 },
-  { time: '12pm', active: 480 }, { time: '2pm', active: 520 }, { time: '4pm', active: 690 },
-  { time: '6pm', active: 820 }, { time: '8pm', active: 580 }, { time: '10pm', active: 120 },
-];
+const COLORS = ['#6C3CE1', '#EC4899', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#FF6B6B'];
 
 export default function Stats() {
+  const [loading, setLoading]         = useState(true);
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [totalGames, setTotalGames]   = useState(0);
+  const [totalXp, setTotalXp]         = useState(0);
+  const [totalFeedback, setTotalFeedback] = useState(0);
+  const [avgRating, setAvgRating]     = useState(0);
+  const [courseData, setCourseData]   = useState([]);
+  const [gameData, setGameData]       = useState([]);
+  const [subjectData, setSubjectData] = useState([]);
+  const [feedbackDist, setFeedbackDist] = useState([]);
+
+  useEffect(() => { fetchAll(); }, []);
+
+  async function fetchAll() {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchStudents(),
+        fetchGames(),
+        fetchFeedback(),
+        fetchModules(),
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchStudents() {
+    const { data } = await supabase.from('users').select('course, created_at');
+    if (!data) return;
+    setTotalStudents(data.length);
+
+    // Group by course for pie chart
+    const courseMap = {};
+    data.forEach(u => {
+      const c = u.course || 'Unknown';
+      courseMap[c] = (courseMap[c] || 0) + 1;
+    });
+    setCourseData(
+      Object.entries(courseMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([name, value], i) => ({ name, value, color: COLORS[i % COLORS.length] }))
+    );
+  }
+
+  async function fetchGames() {
+    const { data } = await supabase.from('game_scores').select('game_type, total_xp, high_score, games_played');
+    if (!data) return;
+
+    const totalPlays = data.reduce((a, b) => a + (b.games_played || 0), 0);
+    const totalXpSum = data.reduce((a, b) => a + (b.total_xp || 0), 0);
+    setTotalGames(totalPlays);
+    setTotalXp(totalXpSum);
+
+    // Group by game_type for bar chart
+    const gameMap = {};
+    data.forEach(g => {
+      const key = g.game_type || 'unknown';
+      if (!gameMap[key]) gameMap[key] = { plays: 0, xp: 0, topScore: 0 };
+      gameMap[key].plays    += g.games_played || 0;
+      gameMap[key].xp       += g.total_xp || 0;
+      gameMap[key].topScore  = Math.max(gameMap[key].topScore, g.high_score || 0);
+    });
+
+    const labels = {
+      guess_game: 'Guess', word_scramble: 'Scramble', true_or_false: 'T/F',
+      speed_quiz: 'Speed', escape_the_program: 'Escape', flash_cards: 'Flash', memory_match: 'Memory',
+    };
+    setGameData(
+      Object.entries(gameMap).map(([key, val]) => ({
+        game: labels[key] || key,
+        plays: val.plays,
+        xp: val.xp,
+        topScore: val.topScore,
+      }))
+    );
+  }
+
+  async function fetchFeedback() {
+    const { data } = await supabase.from('feedback').select('rating, content');
+    if (!data) return;
+    setTotalFeedback(data.length);
+    const avg = data.length ? (data.reduce((a, b) => a + (b.rating || 0), 0) / data.length) : 0;
+    setAvgRating(avg.toFixed(1));
+
+    // Distribution by rating
+    const dist = [5, 4, 3, 2, 1].map(r => ({
+      rating: `${r}★`,
+      count: data.filter(f => f.rating === r).length,
+    }));
+    setFeedbackDist(dist);
+  }
+
+  async function fetchModules() {
+    const { data } = await supabase.from('modules').select('subject');
+    if (!data) return;
+
+    const subjectMap = {};
+    data.forEach(m => {
+      const s = m.subject || 'Unknown';
+      subjectMap[s] = (subjectMap[s] || 0) + 1;
+    });
+    setSubjectData(
+      Object.entries(subjectMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([subject, modules]) => ({ subject, modules }))
+    );
+  }
+
+  const Skeleton = () => (
+    <div style={{ height: 220, borderRadius: 12, background: 'var(--bg)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+  );
+
   return (
     <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <style>{`@keyframes pulse { 0%,100%{opacity:.6} 50%{opacity:.3} }`}</style>
+
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
         {[
-          { label: 'Monthly Growth', value: '+12.3%', sub: 'vs last month', color: 'var(--accent-green)', emoji: '📈' },
-          { label: 'Retention Rate', value: '87.4%', sub: '30-day active', color: 'var(--primary)', emoji: '🔄' },
-          { label: 'Completion Rate', value: '72.8%', sub: 'module average', color: 'var(--secondary)', emoji: '✅' },
-          { label: 'Avg Session', value: '24 min', sub: 'per student', color: 'var(--accent-pink)', emoji: '⏱️' },
+          { label: 'Total Students', value: loading ? '…' : totalStudents.toLocaleString(), sub: 'registered users',       color: 'var(--primary)',      emoji: '👥' },
+          { label: 'Total Game Plays', value: loading ? '…' : totalGames.toLocaleString(),  sub: 'across all games',        color: 'var(--accent-green)', emoji: '🎮' },
+          { label: 'Total XP Earned',  value: loading ? '…' : totalXp.toLocaleString(),     sub: 'by all students',         color: 'var(--secondary)',    emoji: '⚡' },
+          { label: 'Avg. Rating',      value: loading ? '…' : `${avgRating}★`,              sub: `from ${totalFeedback} reviews`, color: 'var(--accent-pink)', emoji: '⭐' },
         ].map(({ label, value, sub, color, emoji }) => (
           <Card key={label}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>{emoji}</div>
@@ -52,87 +145,104 @@ export default function Stats() {
         ))}
       </div>
 
-      {/* Growth Chart */}
+      {/* Game Plays Bar Chart */}
       <Card>
-        <div style={{ fontFamily: 'Fredoka One', fontSize: 18, marginBottom: 20 }}>Platform Growth (2024)</div>
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={monthlyData}>
-            <defs>
-              {[['students', '#6C3CE1'], ['sessions', '#10B981'], ['games', '#EC4899']].map(([key, color]) => (
-                <linearGradient key={key} id={`g-${key}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={color} stopOpacity={0.25} />
-                  <stop offset="95%" stopColor={color} stopOpacity={0} />
-                </linearGradient>
-              ))}
-            </defs>
-            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#9CA3AF' }} />
-            <YAxis hide />
-            <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
-            <Legend wrapperStyle={{ fontFamily: 'Nunito', fontWeight: 700, fontSize: 12 }} />
-            <Area type="monotone" dataKey="students" stroke="#6C3CE1" strokeWidth={2.5} fill="url(#g-students)" name="Students" />
-            <Area type="monotone" dataKey="sessions" stroke="#10B981" strokeWidth={2.5} fill="url(#g-sessions)" name="Sessions" />
-            <Area type="monotone" dataKey="games" stroke="#EC4899" strokeWidth={2.5} fill="url(#g-games)" name="Games" />
-          </AreaChart>
-        </ResponsiveContainer>
+        <div style={{ fontFamily: 'Fredoka One', fontSize: 18, marginBottom: 20 }}>Game Plays by Type</div>
+        {loading ? <Skeleton /> : gameData.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontWeight: 600 }}>No game data yet.</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={gameData} barSize={32}>
+              <XAxis dataKey="game" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#9CA3AF' }} />
+              <YAxis hide />
+              <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
+              <Bar dataKey="plays" fill="var(--primary)" radius={[8, 8, 0, 0]} name="Plays" />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </Card>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        {/* Subject Performance */}
+
+        {/* Students by Course Pie */}
         <Card>
-          <div style={{ fontFamily: 'Fredoka One', fontSize: 18, marginBottom: 20 }}>Subject Avg. Scores</div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={subjectData} barSize={28}>
-              <XAxis dataKey="subject" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#9CA3AF' }} />
-              <YAxis hide domain={[0, 100]} />
-              <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
-              <Bar dataKey="avg" fill="var(--primary)" radius={[8, 8, 0, 0]} name="Avg Score" />
-            </BarChart>
-          </ResponsiveContainer>
+          <div style={{ fontFamily: 'Fredoka One', fontSize: 18, marginBottom: 20 }}>Students by Course</div>
+          {loading ? <Skeleton /> : courseData.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontWeight: 600 }}>No data yet.</div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <ResponsiveContainer width="50%" height={200}>
+                <PieChart>
+                  <Pie data={courseData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} dataKey="value" strokeWidth={0}>
+                    {courseData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {courseData.map(({ name, value, color }) => (
+                  <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>{name.replace('BS ', '').replace('Bachelor of ', '')}</span>
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 800, color }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </Card>
 
-        {/* Grade Distribution */}
+        {/* Feedback Distribution */}
         <Card>
-          <div style={{ fontFamily: 'Fredoka One', fontSize: 18, marginBottom: 20 }}>Students by Grade</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-            <ResponsiveContainer width="50%" height={200}>
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} dataKey="value" strokeWidth={0}>
-                  {pieData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-                </Pie>
-              </PieChart>
+          <div style={{ fontFamily: 'Fredoka One', fontSize: 18, marginBottom: 20 }}>Feedback Distribution</div>
+          {loading ? <Skeleton /> : feedbackDist.every(f => f.count === 0) ? (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontWeight: 600 }}>No feedback yet.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={feedbackDist} barSize={28} layout="vertical">
+                <XAxis type="number" hide />
+                <YAxis type="category" dataKey="rating" axisLine={false} tickLine={false} tick={{ fontSize: 13, fontWeight: 800, fill: '#F59E0B' }} width={30} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
+                <Bar dataKey="count" fill="var(--secondary)" radius={[0, 8, 8, 0]} name="Responses" />
+              </BarChart>
             </ResponsiveContainer>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {pieData.map(({ name, value, color }) => (
-                <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 3, background: color }} />
-                    <span style={{ fontSize: 13, fontWeight: 700 }}>{name}</span>
-                  </div>
-                  <span style={{ fontSize: 13, fontWeight: 800, color }}>{value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
         </Card>
       </div>
 
-      {/* Active Hours */}
+      {/* Modules by Subject */}
       <Card>
-        <div style={{ fontFamily: 'Fredoka One', fontSize: 18, marginBottom: 20 }}>Peak Active Hours (Today)</div>
-        <ResponsiveContainer width="100%" height={160}>
-          <AreaChart data={timeData}>
-            <defs>
-              <linearGradient id="active-grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--secondary)" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="var(--secondary)" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#9CA3AF' }} />
-            <YAxis hide />
-            <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
-            <Area type="monotone" dataKey="active" stroke="var(--secondary)" strokeWidth={3} fill="url(#active-grad)" name="Active Students" />
-          </AreaChart>
-        </ResponsiveContainer>
+        <div style={{ fontFamily: 'Fredoka One', fontSize: 18, marginBottom: 20 }}>Modules by Subject</div>
+        {loading ? <Skeleton /> : subjectData.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontWeight: 600 }}>No modules yet.</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={subjectData} barSize={28}>
+              <XAxis dataKey="subject" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#9CA3AF' }} />
+              <YAxis hide />
+              <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
+              <Bar dataKey="modules" fill="#8B5CF6" radius={[8, 8, 0, 0]} name="Modules" />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </Card>
+
+      {/* XP by Game */}
+      <Card>
+        <div style={{ fontFamily: 'Fredoka One', fontSize: 18, marginBottom: 20 }}>Total XP Earned by Game</div>
+        {loading ? <Skeleton /> : gameData.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontWeight: 600 }}>No game data yet.</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={gameData} barSize={32}>
+              <XAxis dataKey="game" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#9CA3AF' }} />
+              <YAxis hide />
+              <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
+              <Bar dataKey="xp" fill="#F59E0B" radius={[8, 8, 0, 0]} name="Total XP" />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </Card>
     </div>
   );
