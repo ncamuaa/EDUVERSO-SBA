@@ -168,3 +168,38 @@ exports.updateProfileImage = async (req, res, next) => {
     return res.status(200).json({ success: true, message: 'Profile image updated successfully.', profileImage });
   } catch (error) { next(error); }
 };
+exports.adminLogin = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Email and password are required.' });
+    }
+
+    const result = await pool.query(
+      `SELECT id, full_name, email, password, role FROM users WHERE email = $1 LIMIT 1`,
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+    }
+
+    const user = result.rows[0];
+
+    if (user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied. Admins only.' });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Admin login successful.',
+      token: generateToken(user),
+      user: { id: user.id, fullName: user.full_name, email: user.email, role: user.role },
+    });
+  } catch (error) { next(error); }
+};

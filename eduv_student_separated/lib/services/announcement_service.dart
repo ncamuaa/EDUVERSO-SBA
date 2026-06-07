@@ -43,7 +43,7 @@ class AnnouncementResult {
 
 class AnnouncementService {
   static final _db = Supabase.instance.client;
-  static const int _perPage = 1;
+  static const int _perPage = 4;
 
   static Future<AnnouncementResult> getAnnouncements({int page = 1}) async {
     final from = (page - 1) * _perPage;
@@ -57,7 +57,7 @@ class AnnouncementService {
     final response = await _db
         .from('announcements')
         .select()
-        .order('created_at', ascending: false)
+        .order('created_at', ascending: true)
         .range(from, to);
 
     final list = (response as List)

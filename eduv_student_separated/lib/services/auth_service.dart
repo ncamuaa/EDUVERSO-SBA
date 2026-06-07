@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -6,6 +7,8 @@ class AuthService {
   static final _supabase = Supabase.instance.client;
   static Map<String, dynamic>? _cachedUser;
   static Map<String, dynamic>? get cachedUser => _cachedUser;
+
+  static const _baseUrl = 'http://localhost:5002';
 
   // ── Register ──────────────────────────────────────────────────
   static Future<void> register({
@@ -68,6 +71,15 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('user');
     await prefs.setString('user', jsonEncode(_cachedUser));
+
+    // ✅ Update last_login in Express backend (no auth needed)
+    try {
+      await http.post(
+        Uri.parse('$_baseUrl/api/students/update-last-login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'userId': response.user!.id}),
+      );
+    } catch (_) {}
   }
 
   // ── Logout ────────────────────────────────────────────────────

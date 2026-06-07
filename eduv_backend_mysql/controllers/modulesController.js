@@ -46,3 +46,16 @@ exports.getModuleById = async (req, res, next) => {
     return res.status(200).json({ success: true, module: result.rows[0] });
   } catch (error) { next(error); }
 };
+exports.updateModule = async (req, res, next) => {
+  try {
+    const { title, description, subject, grade_level, course, order_index } = req.body;
+    const result = await pool.query(
+      `UPDATE modules SET title=$1, description=$2, subject=$3, grade_level=$4, course=$5, order_index=$6
+       WHERE id=$7 RETURNING *`,
+      [title, description, subject, grade_level, course, order_index, req.params.id]
+    );
+    if (result.rows.length === 0)
+      return res.status(404).json({ success: false, message: 'Module not found.' });
+    return res.status(200).json({ success: true, module: result.rows[0] });
+  } catch (error) { next(error); }
+};

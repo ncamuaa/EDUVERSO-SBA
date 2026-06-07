@@ -12,13 +12,15 @@ const {
 
 const { protect } = require('../middleware/authMiddleware');
 
-// All routes require authentication
+// ✅ No auth needed — userId validated from body
+router.post('/sync-progress', syncProgress);
+
+// All other routes require authentication
 router.use(protect);
 
 // ─── SHARED ──────────────────────────────────────────────────────────────────
 router.get('/leaderboard', getLeaderboard);
 router.get('/my-stats/:userId', getMyStats);
-router.post('/sync-progress', syncProgress);
 
 // ─── GUESS GAME ───────────────────────────────────────────────────────────────
 router.get('/guess-game/questions', getGuessGameQuestions);

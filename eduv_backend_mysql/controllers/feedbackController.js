@@ -59,3 +59,20 @@ const deleteFeedback = async (req, res) => {
 };
 
 module.exports = { getFeedback, createFeedback, deleteFeedback };
+const getAllFeedback = async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT f.id, f.content AS body, f.rating, f.created_at,
+             u.full_name AS student_name, u.course, u.section
+      FROM feedback f
+      LEFT JOIN users u ON f.user_id = u.id
+      ORDER BY f.created_at DESC
+    `);
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('getAllFeedback error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+module.exports = { getFeedback, createFeedback, deleteFeedback, getAllFeedback };

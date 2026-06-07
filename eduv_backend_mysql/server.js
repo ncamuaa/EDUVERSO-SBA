@@ -11,6 +11,9 @@ const lessonsRoutes = require('./routes/lessonsRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
 const announcementsRoutes = require('./routes/announcementsRoutes');
 const gameArenaRoutes = require('./routes/gameArenaRoutes');
+const dashboardRoutes = require("./routes/dashboardRoutes");
+const studentsRoutes = require('./routes/studentsRoutes');
+const searchRouter = require('./routes/searchRoutes');
 
 const app = express();
 
@@ -32,6 +35,9 @@ app.use('/api/lessons', lessonsRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/announcements', announcementsRoutes);
 app.use('/api/game-arena', gameArenaRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use('/api/students', studentsRoutes);
+app.use('/api/search', searchRouter);
 
 // ── AI proxy ──────────────────────────────────────────────────────────────
 app.post('/api/ai/generate', async (req, res) => {
