@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, MoreHorizontal, Users, Wifi, Star, Flame } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Users, Wifi, Star, Zap } from 'lucide-react';
 import Card from '../components/Card';
 import { supabase } from '../lib/supabase';
 
@@ -194,7 +194,7 @@ export default function Students() {
                     </td>
                     <td style={{ padding: '14px 24px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <Flame size={13} color="#F97316" />
+                       <Zap size={13} color="#F97316" />
                         <span style={{ fontSize: 13, fontWeight: 700 }}>{s.streak || 0} days</span>
                       </div>
                     </td>
