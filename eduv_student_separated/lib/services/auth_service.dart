@@ -117,24 +117,30 @@ class AuthService {
   }
 
   // ── Get profile ───────────────────────────────────────────────
-  static Future<Map<String, dynamic>> getProfile() async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) throw Exception('Not logged in');
-
-    final profile = await _supabase
-        .from('users')
-        .select()
-        .eq('id', user.id)
-        .maybeSingle();
-
-    if (profile == null) throw Exception('Profile not found.');
-
-    _cachedUser = Map<String, dynamic>.from(profile);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('user');
-    await prefs.setString('user', jsonEncode(_cachedUser));
-    return _cachedUser!;
+ static Future<Map<String, dynamic>> getProfile() async {
+  final user = _supabase.auth.currentUser;
+  
+  // ✅ If session not ready, return cached instead of throwing
+  if (user == null) {
+    final cached = await getCachedUser();
+    if (cached != null) return cached;
+    throw Exception('Not logged in');
   }
+
+  final profile = await _supabase
+      .from('users')
+      .select()
+      .eq('id', user.id)
+      .maybeSingle();
+
+  if (profile == null) throw Exception('Profile not found.');
+
+  _cachedUser = Map<String, dynamic>.from(profile);
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('user');
+  await prefs.setString('user', jsonEncode(_cachedUser));
+  return _cachedUser!;
+}
 
   // ── Cached user ───────────────────────────────────────────────
   static Future<Map<String, dynamic>?> getCachedUser() async {

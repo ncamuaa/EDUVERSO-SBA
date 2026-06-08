@@ -5,6 +5,7 @@ import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
+import { Users, Gamepad2, Zap, Star } from 'lucide-react';
 
 const COLORS = ['#6C3CE1', '#EC4899', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#FF6B6B'];
 
@@ -138,22 +139,23 @@ export default function Stats() {
     <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
       <style>{`@keyframes pulse { 0%,100%{opacity:.6} 50%{opacity:.3} }`}</style>
 
-      {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-        {[
-          { label: 'Total Students',  value: loading ? '…' : totalStudents.toLocaleString(), sub: 'registered users',            color: 'var(--primary)',      emoji: '👥' },
-          { label: 'Total Game Plays',value: loading ? '…' : totalGames.toLocaleString(),    sub: 'across all games',             color: 'var(--accent-green)', emoji: '🎮' },
-          { label: 'Total XP Earned', value: loading ? '…' : totalXp.toLocaleString(),       sub: 'by all students',              color: 'var(--secondary)',    emoji: '⚡' },
-          { label: 'Avg. Rating',     value: loading ? '…' : `${avgRating}★`,                sub: `from ${totalFeedback} reviews`,color: 'var(--accent-pink)',  emoji: '⭐' },
-        ].map(({ label, value, sub, color, emoji }) => (
-          <Card key={label}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>{emoji}</div>
-            <div style={{ fontFamily: 'Fredoka One', fontSize: 26, color, lineHeight: 1, marginBottom: 4 }}>{value}</div>
-            <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--text-primary)' }}>{label}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{sub}</div>
-          </Card>
-        ))}
+  {[
+    { label: 'Total Students',  value: loading ? '…' : totalStudents.toLocaleString(), sub: 'registered users',             color: 'var(--primary)',      bg: 'rgba(108,60,225,0.1)',  icon: Users     },
+    { label: 'Total Game Plays',value: loading ? '…' : totalGames.toLocaleString(),    sub: 'across all games',              color: 'var(--accent-green)', bg: 'rgba(16,185,129,0.1)',  icon: Gamepad2  },
+    { label: 'Total XP Earned', value: loading ? '…' : totalXp.toLocaleString(),       sub: 'by all students',               color: 'var(--secondary)',    bg: 'rgba(245,158,11,0.1)',  icon: Zap       },
+    { label: 'Avg. Rating',     value: loading ? '…' : `${avgRating}★`,                sub: `from ${totalFeedback} reviews`, color: 'var(--accent-pink)',  bg: 'rgba(236,72,153,0.1)',  icon: Star      },
+  ].map(({ label, value, sub, color, bg, icon: Icon }) => (
+    <Card key={label}>
+      <div style={{ width: 42, height: 42, borderRadius: 12, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+        <Icon size={22} color={color} />
       </div>
+      <div style={{ fontFamily: 'Fredoka One', fontSize: 26, color, lineHeight: 1, marginBottom: 4 }}>{value}</div>
+      <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--text-primary)' }}>{label}</div>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{sub}</div>
+    </Card>
+  ))}
+</div>
 
       {/* Game Plays Bar Chart */}
       <Card>

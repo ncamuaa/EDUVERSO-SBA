@@ -1,25 +1,29 @@
-import { useState, useEffect, useRef } from 'react';
-import { Plus, Edit2, Eye, Search, X, RefreshCw, BookOpen, ChevronRight, Save, AlertCircle, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import {
+  Plus, Edit2, Eye, Search, X, RefreshCw, BookOpen, ChevronRight,
+  Save, AlertCircle, Check, Monitor, Calculator, FlaskConical,
+  PenLine, Globe, Palette, Stethoscope, Briefcase, Cog, GraduationCap
+} from 'lucide-react';
 import Card from '../components/Card';
 import { supabase } from '../lib/supabase';
 
 const COLORS = ['#6C3CE1', '#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#F97316', '#8B5CF6', '#06B6D4'];
-const EMOJIS = ['📚', '🔬', '🔢', '✏️', '🏛️', '🎨', '💻', '🧪', '🌍', '📖'];
 
 function colorForId(id) { return COLORS[id % COLORS.length]; }
-function emojiForSubject(subject = '') {
+
+function iconForSubject(subject = '') {
   const s = subject.toLowerCase();
-  if (s.includes('math'))    return '🔢';
-  if (s.includes('science')) return '🔬';
-  if (s.includes('english')) return '✏️';
-  if (s.includes('filipino') || s.includes('wika')) return '📚';
-  if (s.includes('history') || s.includes('araling')) return '🏛️';
-  if (s.includes('music') || s.includes('art') || s.includes('mapeh')) return '🎨';
-  if (s.includes('it') || s.includes('computer') || s.includes('tech')) return '💻';
-  if (s.includes('nursing') || s.includes('health')) return '🏥';
-  if (s.includes('business') || s.includes('account')) return '💼';
-  if (s.includes('engineering')) return '⚙️';
-  return EMOJIS[Math.abs(subject.charCodeAt(0) || 0) % EMOJIS.length];
+  if (s.includes('computer') || s.includes('it') || s.includes('tech') || s.includes('programming') || s.includes('network') || s.includes('data') || s.includes('system')) return Monitor;
+  if (s.includes('math') || s.includes('calculus') || s.includes('statistics')) return Calculator;
+  if (s.includes('science') && !s.includes('computer')) return FlaskConical;
+  if (s.includes('english')) return PenLine;
+  if (s.includes('filipino') || s.includes('wika')) return Globe;
+  if (s.includes('history') || s.includes('araling')) return Globe;
+  if (s.includes('music') || s.includes('art') || s.includes('mapeh')) return Palette;
+  if (s.includes('nursing') || s.includes('health')) return Stethoscope;
+  if (s.includes('business') || s.includes('account')) return Briefcase;
+  if (s.includes('engineering')) return Cog;
+  return GraduationCap;
 }
 
 // ── Modal backdrop ─────────────────────────────────────────────────────────
@@ -55,7 +59,7 @@ function ViewModal({ module: m, onClose, onEdit }) {
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
   const color = colorForId(m.id);
-  const emoji = emojiForSubject(m.subject);
+  const SubjectIcon = iconForSubject(m.subject);
 
   useEffect(() => {
     async function fetchLessons() {
@@ -73,7 +77,6 @@ function ViewModal({ module: m, onClose, onEdit }) {
 
   return (
     <Modal onClose={onClose}>
-      {/* Header */}
       <div style={{
         padding: '24px 24px 20px',
         background: `linear-gradient(135deg, ${color}18, ${color}30)`,
@@ -82,7 +85,9 @@ function ViewModal({ module: m, onClose, onEdit }) {
         display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
       }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-          <div style={{ fontSize: 42, lineHeight: 1 }}>{emoji}</div>
+          <div style={{ width: 52, height: 52, borderRadius: 14, background: `${color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <SubjectIcon size={26} color={color} />
+          </div>
           <div>
             <div style={{ fontSize: 11, fontWeight: 800, color, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>{m.subject}</div>
             <div style={{ fontFamily: 'Fredoka One', fontSize: 22, color: 'var(--text-primary)', lineHeight: 1.2, marginBottom: 6 }}>{m.title}</div>
@@ -106,14 +111,12 @@ function ViewModal({ module: m, onClose, onEdit }) {
         </div>
       </div>
 
-      {/* Description */}
       {m.description && (
         <div style={{ padding: '16px 24px 0', fontSize: 14, color: 'var(--text-secondary)', fontWeight: 600, lineHeight: 1.6 }}>
           {m.description}
         </div>
       )}
 
-      {/* Lessons */}
       <div style={{ padding: '16px 24px 24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <BookOpen size={15} color={color} />
@@ -121,7 +124,6 @@ function ViewModal({ module: m, onClose, onEdit }) {
             Lessons {!loading && <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)' }}>({lessons.length})</span>}
           </span>
         </div>
-
         {loading ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {Array(4).fill(0).map((_, i) => (
@@ -129,9 +131,7 @@ function ViewModal({ module: m, onClose, onEdit }) {
             ))}
           </div>
         ) : lessons.length === 0 ? (
-          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, fontWeight: 600 }}>
-            No lessons added yet.
-          </div>
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, fontWeight: 600 }}>No lessons added yet.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {lessons.map((l, i) => (
@@ -177,19 +177,14 @@ function EditModal({ module: m, onClose, onSaved }) {
     if (!form.title.trim()) { setError('Title is required.'); return; }
     setSaving(true); setError(null);
     try {
-      const { data, error: sbError } = await supabase
+      const { error: sbError } = await supabase
         .from('modules')
         .update({
-          title:       form.title,
-          description: form.description,
-          subject:     form.subject,
-          grade_level: form.grade_level,
-          course:      form.course,
-          order_index: form.order_index,
+          title: form.title, description: form.description,
+          subject: form.subject, grade_level: form.grade_level,
+          course: form.course, order_index: form.order_index,
         })
-        .eq('id', m.id)
-        .select()
-        .single();
+        .eq('id', m.id);
       if (sbError) throw new Error(sbError.message);
       setSaved(true);
       setTimeout(() => { onSaved({ ...m, ...form }); onClose(); }, 900);
@@ -219,15 +214,12 @@ function EditModal({ module: m, onClose, onSaved }) {
 
   return (
     <Modal onClose={onClose}>
-      {/* Header */}
       <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ fontFamily: 'Fredoka One', fontSize: 18, color: 'var(--text-primary)' }}>Edit Module</div>
         <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <X size={14} color="var(--text-secondary)" />
         </button>
       </div>
-
-      {/* Form */}
       <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Field label="Title *"       field="title" />
         <Field label="Description"   field="description" multiline />
@@ -239,7 +231,6 @@ function EditModal({ module: m, onClose, onSaved }) {
           <Field label="Course"      field="course" />
           <Field label="Order Index" field="order_index" type="number" />
         </div>
-
         {error && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
             <AlertCircle size={14} color="#ef4444" />
@@ -247,12 +238,8 @@ function EditModal({ module: m, onClose, onSaved }) {
           </div>
         )}
       </div>
-
-      {/* Footer */}
       <div style={{ padding: '0 24px 20px', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-        <button onClick={onClose} style={{ padding: '10px 20px', borderRadius: 12, background: 'var(--bg)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'Nunito', fontWeight: 700, fontSize: 14, color: 'var(--text-secondary)' }}>
-          Cancel
-        </button>
+        <button onClick={onClose} style={{ padding: '10px 20px', borderRadius: 12, background: 'var(--bg)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'Nunito', fontWeight: 700, fontSize: 14, color: 'var(--text-secondary)' }}>Cancel</button>
         <button onClick={handleSave} disabled={saving || saved} style={{
           display: 'flex', alignItems: 'center', gap: 8, padding: '10px 24px',
           borderRadius: 12, border: 'none', cursor: saving || saved ? 'default' : 'pointer',
@@ -270,10 +257,7 @@ function EditModal({ module: m, onClose, onSaved }) {
 
 // ── Create Modal ───────────────────────────────────────────────────────────
 function CreateModal({ onClose, onCreated }) {
-  const [form, setForm] = useState({
-    title: '', description: '', subject: '',
-    grade_level: '', course: '', order_index: 0,
-  });
+  const [form, setForm] = useState({ title: '', description: '', subject: '', grade_level: '', course: '', order_index: 0 });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState(null);
   const [saved, setSaved]   = useState(false);
@@ -288,16 +272,8 @@ function CreateModal({ onClose, onCreated }) {
     try {
       const { data, error: sbError } = await supabase
         .from('modules')
-        .insert({
-          title:       form.title,
-          description: form.description,
-          subject:     form.subject,
-          grade_level: form.grade_level,
-          course:      form.course,
-          order_index: form.order_index,
-        })
-        .select()
-        .single();
+        .insert({ title: form.title, description: form.description, subject: form.subject, grade_level: form.grade_level, course: form.course, order_index: form.order_index })
+        .select().single();
       if (sbError) throw new Error(sbError.message);
       setSaved(true);
       setTimeout(() => { onCreated(data); onClose(); }, 900);
@@ -329,7 +305,6 @@ function CreateModal({ onClose, onCreated }) {
 
   return (
     <Modal onClose={onClose}>
-      {/* Header */}
       <div style={{
         padding: '20px 24px',
         background: 'linear-gradient(135deg, #6C3CE115, #6C3CE130)',
@@ -338,15 +313,15 @@ function CreateModal({ onClose, onCreated }) {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #6C3CE1, #8B5CF6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>✨</div>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #6C3CE1, #8B5CF6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Plus size={18} color="#fff" />
+          </div>
           <div style={{ fontFamily: 'Fredoka One', fontSize: 20, color: 'var(--text-primary)' }}>Create New Module</div>
         </div>
         <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,0,0,0.08)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <X size={14} color="var(--text-secondary)" />
         </button>
       </div>
-
-      {/* Form */}
       <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Field label="Title"       field="title"       required />
         <Field label="Description" field="description" multiline />
@@ -358,7 +333,6 @@ function CreateModal({ onClose, onCreated }) {
           <Field label="Course"      field="course" />
           <Field label="Order Index" field="order_index" type="number" />
         </div>
-
         {error && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
             <AlertCircle size={14} color="#ef4444" />
@@ -366,12 +340,8 @@ function CreateModal({ onClose, onCreated }) {
           </div>
         )}
       </div>
-
-      {/* Footer */}
       <div style={{ padding: '0 24px 20px', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-        <button onClick={onClose} style={{ padding: '10px 20px', borderRadius: 12, background: 'var(--bg)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'Nunito', fontWeight: 700, fontSize: 14, color: 'var(--text-secondary)' }}>
-          Cancel
-        </button>
+        <button onClick={onClose} style={{ padding: '10px 20px', borderRadius: 12, background: 'var(--bg)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'Nunito', fontWeight: 700, fontSize: 14, color: 'var(--text-secondary)' }}>Cancel</button>
         <button onClick={handleCreate} disabled={saving || saved} style={{
           display: 'flex', alignItems: 'center', gap: 8, padding: '10px 24px',
           borderRadius: 12, border: 'none', cursor: saving || saved ? 'default' : 'pointer',
@@ -384,6 +354,40 @@ function CreateModal({ onClose, onCreated }) {
         </button>
       </div>
     </Modal>
+  );
+}
+
+// ── Module Card ────────────────────────────────────────────────────────────
+function ModuleCard({ module: m, onView, onEdit }) {
+  const color = colorForId(m.id);
+  const SubjectIcon = iconForSubject(m.subject);
+  return (
+    <Card style={{ padding: 0, overflow: 'hidden', transition: 'transform 0.2s, box-shadow 0.2s' }}
+      onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.12)'; }}
+      onMouseOut={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
+      <div style={{ height: 90, background: `linear-gradient(135deg, ${color}22, ${color}44)`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `3px solid ${color}33` }}>
+        <div style={{ width: 48, height: 48, borderRadius: 12, background: `${color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <SubjectIcon size={24} color={color} />
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 8, background: 'rgba(16,185,129,0.15)', color: 'var(--accent-green)', border: '1px solid rgba(16,185,129,0.3)' }}>published</span>
+      </div>
+      <div style={{ padding: 20 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{m.subject}</div>
+        <div style={{ fontFamily: 'Fredoka One', fontSize: 17, color: 'var(--text-primary)', marginBottom: 4, lineHeight: 1.2 }}>{m.title}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 8 }}>{m.grade_level} · {m.course}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600, lineHeight: 1.4, marginBottom: 14, minHeight: 36 }}>
+          {m.description?.slice(0, 80)}{m.description?.length > 80 ? '…' : ''}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={onView} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px', borderRadius: 10, background: 'var(--bg)', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', fontFamily: 'Nunito' }}>
+            <Eye size={13} /> View
+          </button>
+          <button onClick={onEdit} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px', borderRadius: 10, background: `${color}15`, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color, fontFamily: 'Nunito' }}>
+            <Edit2 size={13} /> Edit
+          </button>
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -409,13 +413,9 @@ export default function Modules() {
       if (filterSubject) query = query.eq('subject', filterSubject);
       if (filterGrade)   query = query.eq('grade_level', filterGrade);
       if (filterCourse)  query = query.eq('course', filterCourse);
-
       const { data, error: sbError } = await query;
       if (sbError) throw new Error(sbError.message);
-
       setModules(data || []);
-
-      // Derive filter options from all modules (unfiltered fetch for sidebar options)
       const { data: allData } = await supabase.from('modules').select('subject, grade_level, course');
       if (allData) {
         setFilters({
@@ -433,13 +433,8 @@ export default function Modules() {
 
   useEffect(() => { fetchModules(); }, [filterSubject, filterGrade, filterCourse]);
 
-  function handleSaved(updated) {
-    setModules(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated } : m));
-  }
-
-  function handleCreated(newModule) {
-    setModules(prev => [newModule, ...prev]);
-  }
+  function handleSaved(updated) { setModules(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated } : m)); }
+  function handleCreated(newModule) { setModules(prev => [newModule, ...prev]); }
 
   const displayed = modules.filter(m =>
     !search || m.title?.toLowerCase().includes(search.toLowerCase()) ||
@@ -448,7 +443,6 @@ export default function Modules() {
   );
 
   const hasFilters = filterSubject || filterGrade || filterCourse || search;
-
   function clearFilters() { setSearch(''); setSubject(''); setGrade(''); setCourse(''); }
 
   return (
@@ -509,7 +503,7 @@ export default function Modules() {
         </div>
       </div>
 
-      {/* Loading skeletons */}
+      {/* Loading */}
       {loading && (
         <div style={{ display: 'grid', gridTemplateColumns: view === 'grid' ? 'repeat(3, 1fr)' : '1fr', gap: 16 }}>
           {Array(6).fill(0).map((_, i) => (
@@ -521,7 +515,7 @@ export default function Modules() {
       {/* Error */}
       {error && (
         <Card style={{ padding: 32, textAlign: 'center' }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
+          <AlertCircle size={32} color="#ef4444" style={{ marginBottom: 12 }} />
           <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>{error}</div>
           <button onClick={fetchModules} style={{ marginTop: 8, padding: '8px 20px', borderRadius: 10, background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'Nunito', fontWeight: 700 }}>Retry</button>
         </Card>
@@ -530,7 +524,7 @@ export default function Modules() {
       {/* Empty */}
       {!loading && !error && displayed.length === 0 && (
         <Card style={{ padding: 48, textAlign: 'center' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
+          <BookOpen size={40} color="var(--text-muted)" style={{ marginBottom: 12 }} />
           <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>No modules found</div>
           <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>Try adjusting your filters</div>
           {hasFilters && <button onClick={clearFilters} style={{ marginTop: 12, padding: '8px 20px', borderRadius: 10, background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'Nunito', fontWeight: 700 }}>Clear Filters</button>}
@@ -558,14 +552,15 @@ export default function Modules() {
             <tbody>
               {displayed.map((m, i) => {
                 const color = colorForId(m.id);
+                const SubjectIcon = iconForSubject(m.subject);
                 return (
                   <tr key={m.id} style={{ borderBottom: i < displayed.length - 1 ? '1px solid var(--border)' : 'none', transition: 'background 0.15s' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(108,60,225,0.04)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: `${color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
-                          {emojiForSubject(m.subject)}
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: `${color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <SubjectIcon size={18} color={color} />
                         </div>
                         <div>
                           <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--text-primary)' }}>{m.title}</div>
@@ -601,37 +596,5 @@ export default function Modules() {
       {editing  && <EditModal   module={editing}  onClose={() => setEditing(null)}  onSaved={handleSaved} />}
       {creating && <CreateModal                   onClose={() => setCreating(false)} onCreated={handleCreated} />}
     </div>
-  );
-}
-
-// ── Module Card ────────────────────────────────────────────────────────────
-function ModuleCard({ module: m, onView, onEdit }) {
-  const color = colorForId(m.id);
-  const emoji = emojiForSubject(m.subject);
-  return (
-    <Card style={{ padding: 0, overflow: 'hidden', transition: 'transform 0.2s, box-shadow 0.2s' }}
-      onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.12)'; }}
-      onMouseOut={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
-      <div style={{ height: 90, background: `linear-gradient(135deg, ${color}22, ${color}44)`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `3px solid ${color}33` }}>
-        <div style={{ fontSize: 38 }}>{emoji}</div>
-        <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 8, background: 'rgba(16,185,129,0.15)', color: 'var(--accent-green)', border: '1px solid rgba(16,185,129,0.3)' }}>published</span>
-      </div>
-      <div style={{ padding: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{m.subject}</div>
-        <div style={{ fontFamily: 'Fredoka One', fontSize: 17, color: 'var(--text-primary)', marginBottom: 4, lineHeight: 1.2 }}>{m.title}</div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 8 }}>{m.grade_level} · {m.course}</div>
-        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600, lineHeight: 1.4, marginBottom: 14, minHeight: 36 }}>
-          {m.description?.slice(0, 80)}{m.description?.length > 80 ? '…' : ''}
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={onView} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px', borderRadius: 10, background: 'var(--bg)', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', fontFamily: 'Nunito' }}>
-            <Eye size={13} /> View
-          </button>
-          <button onClick={onEdit} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px', borderRadius: 10, background: `${color}15`, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color, fontFamily: 'Nunito' }}>
-            <Edit2 size={13} /> Edit
-          </button>
-        </div>
-      </div>
-    </Card>
   );
 }
