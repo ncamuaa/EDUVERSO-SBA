@@ -1,9 +1,38 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, MoreHorizontal } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Users, Wifi, Star, Flame } from 'lucide-react';
 import Card from '../components/Card';
 import { supabase } from '../lib/supabase';
 
-const BADGES = ['🏆', '⭐', '🎯', '🔥', '💎'];
+function Avatar({ student, index }) {
+  const colors = [
+    '#6C3CE1', '#3B82F6', '#10B981', '#F97316',
+    '#EC4899', '#8B5CF6', '#06B6D4', '#84CC16'
+  ];
+  const bg = colors[index % colors.length];
+  const initials = student.full_name
+    ? student.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+    : '?';
+
+  if (student.profileImage) {
+    return (
+      <img
+        src={student.profileImage}
+        alt={student.full_name}
+        style={{ width: 38, height: 38, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }}
+      />
+    );
+  }
+
+  return (
+    <div style={{
+      width: 38, height: 38, borderRadius: 10, background: bg, flexShrink: 0,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: '#fff', fontWeight: 800, fontSize: 13, fontFamily: 'Nunito',
+    }}>
+      {initials}
+    </div>
+  );
+}
 
 export default function Students() {
   const [students, setStudents] = useState([]);
@@ -48,16 +77,22 @@ export default function Students() {
     return matchSearch;
   });
 
+  const statCards = [
+    { label: 'Total Enrolled', value: loading ? '…' : stats.total.toLocaleString(), icon: Users,  color: 'var(--primary)',      bg: 'rgba(108,60,225,0.1)'  },
+    { label: 'Online Now',     value: loading ? '…' : stats.onlineNow.toLocaleString(), icon: Wifi, color: 'var(--accent-green)', bg: 'rgba(16,185,129,0.1)'  },
+    { label: 'Avg. XP',        value: loading ? '…' : stats.avgXp, icon: Star,  color: 'var(--secondary)',    bg: 'rgba(245,158,11,0.1)'  },
+  ];
+
   return (
     <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+      {/* Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-        {[
-          { label: 'Total Enrolled', value: loading ? '…' : stats.total.toLocaleString(), icon: '👨‍🎓', color: 'var(--primary)' },
-          { label: 'Online Now', value: loading ? '…' : stats.onlineNow.toLocaleString(), icon: '🟢', color: 'var(--accent-green)' },
-          { label: 'Avg. XP', value: loading ? '…' : stats.avgXp, icon: '⭐', color: 'var(--secondary)' },
-        ].map(({ label, value, icon, color }) => (
+        {statCards.map(({ label, value, icon: Icon, color, bg }) => (
           <Card key={label} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ fontSize: 32 }}>{icon}</div>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Icon size={22} color={color} />
+            </div>
             <div>
               <div style={{ fontFamily: 'Fredoka One', fontSize: 26, color, lineHeight: 1 }}>{value}</div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>{label}</div>
@@ -66,6 +101,7 @@ export default function Students() {
         ))}
       </div>
 
+      {/* Table */}
       <Card style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)' }}>
           <div style={{ fontFamily: 'Fredoka One', fontSize: 18 }}>All Students</div>
@@ -117,11 +153,7 @@ export default function Students() {
                   >
                     <td style={{ padding: '14px 24px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{
-                          width: 38, height: 38, borderRadius: 10,
-                          background: `hsl(${i * 45}, 70%, 88%)`,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18
-                        }}>{BADGES[i % BADGES.length]}</div>
+                        <Avatar student={s} index={i} />
                         <div>
                           <div style={{ fontWeight: 800, fontSize: 14 }}>{s.full_name || 'Unknown'}</div>
                           <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{s.email}</div>
@@ -138,7 +170,10 @@ export default function Students() {
                       </div>
                     </td>
                     <td style={{ padding: '14px 24px' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700 }}>🔥 {s.streak || 0} days</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Flame size={13} color="#F97316" />
+                        <span style={{ fontSize: 13, fontWeight: 700 }}>{s.streak || 0} days</span>
+                      </div>
                     </td>
                     <td style={{ padding: '14px 24px' }}>
                       <span style={{
