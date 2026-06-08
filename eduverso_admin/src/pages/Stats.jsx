@@ -2,35 +2,30 @@ import { useState, useEffect } from 'react';
 import Card from '../components/Card';
 import { supabase } from '../lib/supabase';
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
 
 const COLORS = ['#6C3CE1', '#EC4899', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#FF6B6B'];
 
 export default function Stats() {
-  const [loading, setLoading]         = useState(true);
+  const [loading, setLoading]             = useState(true);
   const [totalStudents, setTotalStudents] = useState(0);
-  const [totalGames, setTotalGames]   = useState(0);
-  const [totalXp, setTotalXp]         = useState(0);
+  const [totalGames, setTotalGames]       = useState(0);
+  const [totalXp, setTotalXp]             = useState(0);
   const [totalFeedback, setTotalFeedback] = useState(0);
-  const [avgRating, setAvgRating]     = useState(0);
-  const [courseData, setCourseData]   = useState([]);
-  const [gameData, setGameData]       = useState([]);
-  const [subjectData, setSubjectData] = useState([]);
-  const [feedbackDist, setFeedbackDist] = useState([]);
+  const [avgRating, setAvgRating]         = useState(0);
+  const [courseData, setCourseData]       = useState([]);
+  const [gameData, setGameData]           = useState([]);
+  const [subjectData, setSubjectData]     = useState([]);
+  const [feedbackDist, setFeedbackDist]   = useState([]);
 
   useEffect(() => { fetchAll(); }, []);
 
   async function fetchAll() {
     setLoading(true);
     try {
-      await Promise.all([
-        fetchStudents(),
-        fetchGames(),
-        fetchFeedback(),
-        fetchModules(),
-      ]);
+      await Promise.all([fetchStudents(), fetchGames(), fetchFeedback(), fetchModules()]);
     } finally {
       setLoading(false);
     }
@@ -40,8 +35,6 @@ export default function Stats() {
     const { data } = await supabase.from('users').select('course, created_at');
     if (!data) return;
     setTotalStudents(data.length);
-
-    // Group by course for pie chart
     const courseMap = {};
     data.forEach(u => {
       const c = u.course || 'Unknown';
@@ -58,13 +51,8 @@ export default function Stats() {
   async function fetchGames() {
     const { data } = await supabase.from('game_scores').select('game_type, total_xp, high_score, games_played');
     if (!data) return;
-
-    const totalPlays = data.reduce((a, b) => a + (b.games_played || 0), 0);
-    const totalXpSum = data.reduce((a, b) => a + (b.total_xp || 0), 0);
-    setTotalGames(totalPlays);
-    setTotalXp(totalXpSum);
-
-    // Group by game_type for bar chart
+    setTotalGames(data.reduce((a, b) => a + (b.games_played || 0), 0));
+    setTotalXp(data.reduce((a, b) => a + (b.total_xp || 0), 0));
     const gameMap = {};
     data.forEach(g => {
       const key = g.game_type || 'unknown';
@@ -73,7 +61,6 @@ export default function Stats() {
       gameMap[key].xp       += g.total_xp || 0;
       gameMap[key].topScore  = Math.max(gameMap[key].topScore, g.high_score || 0);
     });
-
     const labels = {
       guess_game: 'Guess', word_scramble: 'Scramble', true_or_false: 'T/F',
       speed_quiz: 'Speed', escape_the_program: 'Escape', flash_cards: 'Flash', memory_match: 'Memory',
@@ -92,21 +79,16 @@ export default function Stats() {
     const { data } = await supabase.from('feedback').select('rating, content');
     if (!data) return;
     setTotalFeedback(data.length);
-    const avg = data.length ? (data.reduce((a, b) => a + (b.rating || 0), 0) / data.length) : 0;
-    setAvgRating(avg.toFixed(1));
-
-    // Distribution by rating
-    const dist = [5, 4, 3, 2, 1].map(r => ({
+    setAvgRating(data.length ? (data.reduce((a, b) => a + (b.rating || 0), 0) / data.length).toFixed(1) : 0);
+    setFeedbackDist([5, 4, 3, 2, 1].map(r => ({
       rating: `${r}★`,
       count: data.filter(f => f.rating === r).length,
-    }));
-    setFeedbackDist(dist);
+    })));
   }
 
   async function fetchModules() {
     const { data } = await supabase.from('modules').select('subject');
     if (!data) return;
-
     const subjectMap = {};
     data.forEach(m => {
       const s = m.subject || 'Unknown';
@@ -124,6 +106,22 @@ export default function Stats() {
     <div style={{ height: 220, borderRadius: 12, background: 'var(--bg)', animation: 'pulse 1.5s ease-in-out infinite' }} />
   );
 
+  // Fixed-width bar chart that scrolls horizontally — no more giant spaces
+  const ScrollableBar = ({ data, dataKey, color, nameKey, height = 220, name }) => {
+    const barW = 48;
+    const chartWidth = Math.max(data.length * (barW + 40), 400);
+    return (
+      <div style={{ overflowX: 'auto', overflowY: 'hidden' }}>
+        <BarChart width={chartWidth} height={height} data={data} barSize={barW} barCategoryGap="35%">
+          <XAxis dataKey={nameKey} axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#9CA3AF' }} />
+          <YAxis hide />
+          <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
+          <Bar dataKey={dataKey} fill={color} radius={[8, 8, 0, 0]} name={name} />
+        </BarChart>
+      </div>
+    );
+  };
+
   return (
     <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
       <style>{`@keyframes pulse { 0%,100%{opacity:.6} 50%{opacity:.3} }`}</style>
@@ -131,10 +129,10 @@ export default function Stats() {
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
         {[
-          { label: 'Total Students', value: loading ? '…' : totalStudents.toLocaleString(), sub: 'registered users',       color: 'var(--primary)',      emoji: '👥' },
-          { label: 'Total Game Plays', value: loading ? '…' : totalGames.toLocaleString(),  sub: 'across all games',        color: 'var(--accent-green)', emoji: '🎮' },
-          { label: 'Total XP Earned',  value: loading ? '…' : totalXp.toLocaleString(),     sub: 'by all students',         color: 'var(--secondary)',    emoji: '⚡' },
-          { label: 'Avg. Rating',      value: loading ? '…' : `${avgRating}★`,              sub: `from ${totalFeedback} reviews`, color: 'var(--accent-pink)', emoji: '⭐' },
+          { label: 'Total Students',  value: loading ? '…' : totalStudents.toLocaleString(), sub: 'registered users',            color: 'var(--primary)',      emoji: '👥' },
+          { label: 'Total Game Plays',value: loading ? '…' : totalGames.toLocaleString(),    sub: 'across all games',             color: 'var(--accent-green)', emoji: '🎮' },
+          { label: 'Total XP Earned', value: loading ? '…' : totalXp.toLocaleString(),       sub: 'by all students',              color: 'var(--secondary)',    emoji: '⚡' },
+          { label: 'Avg. Rating',     value: loading ? '…' : `${avgRating}★`,                sub: `from ${totalFeedback} reviews`,color: 'var(--accent-pink)',  emoji: '⭐' },
         ].map(({ label, value, sub, color, emoji }) => (
           <Card key={label}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>{emoji}</div>
@@ -151,14 +149,7 @@ export default function Stats() {
         {loading ? <Skeleton /> : gameData.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontWeight: 600 }}>No game data yet.</div>
         ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={gameData} barSize={20} barCategoryGap="40%">
-              <XAxis dataKey="game" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#9CA3AF' }} />
-              <YAxis hide />
-              <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
-              <Bar dataKey="plays" fill="var(--primary)" radius={[8, 8, 0, 0]} name="Plays" />
-            </BarChart>
-          </ResponsiveContainer>
+          <ScrollableBar data={gameData} dataKey="plays" color="var(--primary)" nameKey="game" height={220} name="Plays" />
         )}
       </Card>
 
@@ -183,7 +174,9 @@ export default function Stats() {
                   <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>{name.replace('BS ', '').replace('Bachelor of ', '')}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>
+                        {name.replace('BS ', '').replace('Bachelor of ', '')}
+                      </span>
                     </div>
                     <span style={{ fontSize: 12, fontWeight: 800, color }}>{value}</span>
                   </div>
@@ -200,7 +193,7 @@ export default function Stats() {
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontWeight: 600 }}>No feedback yet.</div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={feedbackDist} barSize={18} layout="vertical">
+              <BarChart data={feedbackDist} barSize={24} layout="vertical">
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="rating" axisLine={false} tickLine={false} tick={{ fontSize: 13, fontWeight: 800, fill: '#F59E0B' }} width={30} />
                 <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
@@ -217,14 +210,7 @@ export default function Stats() {
         {loading ? <Skeleton /> : subjectData.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontWeight: 600 }}>No modules yet.</div>
         ) : (
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={subjectData} barSize={20} barCategoryGap="40%">
-              <XAxis dataKey="subject" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#9CA3AF' }} />
-              <YAxis hide />
-              <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
-              <Bar dataKey="modules" fill="#8B5CF6" radius={[8, 8, 0, 0]} name="Modules" />
-            </BarChart>
-          </ResponsiveContainer>
+          <ScrollableBar data={subjectData} dataKey="modules" color="#8B5CF6" nameKey="subject" height={200} name="Modules" />
         )}
       </Card>
 
@@ -234,14 +220,7 @@ export default function Stats() {
         {loading ? <Skeleton /> : gameData.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontWeight: 600 }}>No game data yet.</div>
         ) : (
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={gameData} barSize={20} barCategoryGap="40%">
-              <XAxis dataKey="game" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#9CA3AF' }} />
-              <YAxis hide />
-              <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
-              <Bar dataKey="xp" fill="#F59E0B" radius={[8, 8, 0, 0]} name="Total XP" />
-            </BarChart>
-          </ResponsiveContainer>
+          <ScrollableBar data={gameData} dataKey="xp" color="#F59E0B" nameKey="game" height={200} name="Total XP" />
         )}
       </Card>
     </div>
