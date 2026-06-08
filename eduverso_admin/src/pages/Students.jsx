@@ -56,7 +56,6 @@ function Avatar({ student, index }) {
       {initials}
     </div>
   );
-}
 
 export default function Students() {
   const [students, setStudents] = useState([]);
