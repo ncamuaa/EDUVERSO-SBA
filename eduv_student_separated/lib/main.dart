@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 import 'pages/dashboard_page.dart';
+import 'pages/onboarding_page.dart'; // ← add this
 
 final ValueNotifier<bool> themeNotifier = ValueNotifier(true);
 
@@ -61,9 +62,10 @@ class MyApp extends StatelessWidget {
           ),
           initialRoute: initialRoute,
           routes: {
-            '/login': (context) => const LoginPage(),
-            '/register': (context) => const RegisterPage(),
-            '/dashboard': (context) => const StudentDashboardPage(),
+            '/login':      (context) => const LoginPage(),
+            '/register':   (context) => const RegisterPage(),
+            '/dashboard':  (context) => const StudentDashboardPage(),
+           
           },
         );
       },
