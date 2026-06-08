@@ -13,16 +13,40 @@ function Avatar({ student, index }) {
     ? student.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
     : '?';
 
-  if (student.profileImage) {
+  // ✅ Handle both plain base64 and full data URLs
+  const imgSrc = student.profileImage
+    ? student.profileImage.startsWith('data:')
+      ? student.profileImage
+      : `data:image/jpeg;base64,${student.profileImage}`
+    : null;
+
+  if (imgSrc) {
     return (
       <img
-        src={student.profileImage}
+        src={imgSrc}
         alt={student.full_name}
-        style={{ width: 38, height: 38, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }}
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: 10,
+          objectFit: 'cover',
+          flexShrink: 0,
+          display: 'block',
+        }}
       />
     );
   }
 
+  return (
+    <div style={{
+      width: 38, height: 38, borderRadius: 10, background: bg, flexShrink: 0,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: '#fff', fontWeight: 800, fontSize: 13, fontFamily: 'Nunito',
+    }}>
+      {initials}
+    </div>
+  );
+}
   return (
     <div style={{
       width: 38, height: 38, borderRadius: 10, background: bg, flexShrink: 0,
