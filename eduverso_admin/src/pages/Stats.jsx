@@ -108,19 +108,31 @@ export default function Stats() {
 
   // Fixed-width bar chart that scrolls horizontally — no more giant spaces
   const ScrollableBar = ({ data, dataKey, color, nameKey, height = 220, name }) => {
-    const barW = 48;
-    const chartWidth = Math.max(data.length * (barW + 40), 400);
-    return (
-      <div style={{ overflowX: 'auto', overflowY: 'hidden' }}>
-        <BarChart width={chartWidth} height={height} data={data} barSize={barW} barCategoryGap="35%">
+  const needsScroll = data.length > 6;
+  const chartWidth = needsScroll ? data.length * 88 : undefined;
+
+  return (
+    <div style={{ overflowX: needsScroll ? 'auto' : 'hidden', overflowY: 'hidden' }}>
+      {needsScroll ? (
+        <BarChart width={chartWidth} height={height} data={data} maxBarSize={48} barCategoryGap="30%">
           <XAxis dataKey={nameKey} axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#9CA3AF' }} />
           <YAxis hide />
           <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
           <Bar dataKey={dataKey} fill={color} radius={[8, 8, 0, 0]} name={name} />
         </BarChart>
-      </div>
-    );
-  };
+      ) : (
+        <ResponsiveContainer width="100%" height={height}>
+          <BarChart data={data} maxBarSize={64} barCategoryGap="30%">
+            <XAxis dataKey={nameKey} axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#9CA3AF' }} />
+            <YAxis hide />
+            <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
+            <Bar dataKey={dataKey} fill={color} radius={[8, 8, 0, 0]} name={name} />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  );
+};
 
   return (
     <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
