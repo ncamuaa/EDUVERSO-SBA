@@ -152,7 +152,7 @@ export default function Stats() {
           <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontWeight: 600 }}>No game data yet.</div>
         ) : (
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={gameData} barSize={32}>
+            <BarChart data={gameData} barSize={20} barCategoryGap="40%">
               <XAxis dataKey="game" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#9CA3AF' }} />
               <YAxis hide />
               <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
@@ -200,7 +200,7 @@ export default function Stats() {
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontWeight: 600 }}>No feedback yet.</div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={feedbackDist} barSize={28} layout="vertical">
+              <BarChart data={feedbackDist} barSize={18} layout="vertical">
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="rating" axisLine={false} tickLine={false} tick={{ fontSize: 13, fontWeight: 800, fill: '#F59E0B' }} width={30} />
                 <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
@@ -218,7 +218,7 @@ export default function Stats() {
           <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontWeight: 600 }}>No modules yet.</div>
         ) : (
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={subjectData} barSize={28}>
+            <BarChart data={subjectData} barSize={20} barCategoryGap="40%">
               <XAxis dataKey="subject" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#9CA3AF' }} />
               <YAxis hide />
               <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
@@ -235,7 +235,7 @@ export default function Stats() {
           <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontWeight: 600 }}>No game data yet.</div>
         ) : (
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={gameData} barSize={32}>
+            <BarChart data={gameData} barSize={20} barCategoryGap="40%">
               <XAxis dataKey="game" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#9CA3AF' }} />
               <YAxis hide />
               <Tooltip contentStyle={{ borderRadius: 12, border: 'none', fontFamily: 'Nunito', fontWeight: 700 }} />
