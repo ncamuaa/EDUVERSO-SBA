@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart'; // ← add this
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -5,7 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 import 'pages/dashboard_page.dart';
-import 'pages/onboarding_page.dart'; // ← add this
+import 'pages/onboarding_page.dart';
 
 final ValueNotifier<bool> themeNotifier = ValueNotifier(true);
 
@@ -49,7 +50,7 @@ class MyApp extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: themeNotifier,
       builder: (_, isDark, __) {
-        return MaterialApp(
+        final app = MaterialApp(
           debugShowCheckedModeBanner: false,
           themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
           theme: ThemeData(
@@ -62,12 +63,42 @@ class MyApp extends StatelessWidget {
           ),
           initialRoute: initialRoute,
           routes: {
-            '/login':      (context) => const LoginPage(),
-            '/register':   (context) => const RegisterPage(),
-            '/dashboard':  (context) => const StudentDashboardPage(),
-           
+            '/login':     (context) => const LoginPage(),
+            '/register':  (context) => const RegisterPage(),
+            '/dashboard': (context) => const StudentDashboardPage(),
           },
         );
+
+        // ✅ On web: wrap in centered phone-size container
+        if (kIsWeb) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: Scaffold(
+              backgroundColor: Colors.grey[900],
+              body: Center(
+                child: Container(
+                  width: 430,
+                  height: 932,
+                  clipBehavior: Clip.hardEdge,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black54,
+                        blurRadius: 60,
+                        spreadRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: app,
+                ),
+              ),
+            ),
+          );
+        }
+
+        // ✅ On real phone: show normally
+        return app;
       },
     );
   }
