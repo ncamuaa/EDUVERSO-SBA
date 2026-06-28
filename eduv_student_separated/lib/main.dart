@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart'; // ← add this
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -50,7 +50,29 @@ class MyApp extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: themeNotifier,
       builder: (_, isDark, __) {
-        final app = MaterialApp(
+        if (kIsWeb) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+            theme: ThemeData(
+              brightness: Brightness.light,
+              textTheme: _textTheme,
+            ),
+            darkTheme: ThemeData(
+              brightness: Brightness.dark,
+              textTheme: _textTheme,
+            ),
+            initialRoute: initialRoute,
+            routes: {
+              '/login':     (context) => const _WebShell(child: LoginPage()),
+              '/register':  (context) => const _WebShell(child: RegisterPage()),
+              '/dashboard': (context) => const _WebShell(child: StudentDashboardPage()),
+            },
+          );
+        }
+
+        // On real phone: show normally
+        return MaterialApp(
           debugShowCheckedModeBanner: false,
           themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
           theme: ThemeData(
@@ -68,38 +90,37 @@ class MyApp extends StatelessWidget {
             '/dashboard': (context) => const StudentDashboardPage(),
           },
         );
-
-        // ✅ On web: wrap in centered phone-size container
-        if (kIsWeb) {
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            home: Scaffold(
-              backgroundColor: Colors.grey[900],
-              body: Center(
-                child: Container(
-                  width: 430,
-                  height: 932,
-                  clipBehavior: Clip.hardEdge,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black54,
-                        blurRadius: 60,
-                        spreadRadius: 10,
-                      ),
-                    ],
-                  ),
-                  child: app,
-                ),
-              ),
-            ),
-          );
-        }
-
-        // ✅ On real phone: show normally
-        return app;
       },
+    );
+  }
+}
+
+class _WebShell extends StatelessWidget {
+  final Widget child;
+  const _WebShell({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[900],
+      body: Center(
+        child: Container(
+          width: 430,
+          height: 932,
+          clipBehavior: Clip.hardEdge,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black54,
+                blurRadius: 60,
+                spreadRadius: 10,
+              ),
+            ],
+          ),
+          child: child,
+        ),
+      ),
     );
   }
 }
